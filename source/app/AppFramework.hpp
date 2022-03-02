@@ -1,7 +1,7 @@
 #pragma once
-#include"Application.hpp"
-#include<windows.h>
-#include<windowsx.h>
+#include "Application.hpp"
+#include <windows.h>
+#include <windowsx.h>
 
 class AppFramework{
 public:

@@ -2,7 +2,9 @@
 #include <memory>
 #include "Application.hpp"
 #include "CommandQueue.hpp"
+#include "RenderResource.hpp" 
 #include "Device.hpp"
+#include "Dx12Model.hpp"
 
 class Pipeline : public Application{
 public:
@@ -24,27 +26,24 @@ public:
 
     float GetAspectRatio() const { return static_cast<float>(m_wndWidth) / static_cast<float>(m_wndHeight); }
 
+    static uint16_t GetFrameCount() { return FrameCount; }
+
 private:
     void InitD3D();
     void InitGUI();
+
     void LoadContent();
+    
     void RenderScene();
     void RenderGUI();
 
 protected:
 
-    static const uint16_t              m_frameCount = 3;
-    uint32_t                           m_frameIndex;
-    uint32_t                           m_rtvDescriptorSize;
+    static const uint8_t               FrameCount = 3;
 
-    std::unique_ptr<Device>            m_device;
-    std::unique_ptr<CommandQueue>      m_commandQueue;
+    std::unique_ptr<Scene>             m_scene;
+    std::unique_ptr<RenderResource>    m_renderResource;
 
-    ComPtr<IDXGISwapChain3>            m_dxgiSwapChain;
-    ComPtr<ID3D12GraphicsCommandList2> m_d3d12CommandList;
-    ComPtr<ID3D12Resource>             m_renderTargets[m_frameCount];
-
-    ComPtr<ID3D12DescriptorHeap>       m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_guiSrvDescHeap;
 
 };

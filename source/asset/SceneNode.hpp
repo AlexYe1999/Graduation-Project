@@ -1,6 +1,6 @@
 #pragma once
 #include "Utils.hpp"
-#include "Icomponent.hpp"
+#include "Mesh.hpp"
 #include "GeoMath.hpp"
 
 #include <vector>
@@ -20,8 +20,10 @@ public:
         const GeoMath::Matrix4f* R,
         const GeoMath::Matrix4f* T
     );
-    
-    virtual GeoMath::Matrix4f GetTransform() const { return r * t * m_parentNode->GetTransform(); };
+
+    virtual void SetMatrix(const GeoMath::Matrix4f& toParent);
+
+    virtual GeoMath::Matrix4f GetTransform() const;
 
     const GeoMath::Matrix4f& GetT()         const { return t; }
     const GeoMath::Matrix4f& GetToWorld()   const { return m_toWorld; }
@@ -32,12 +34,14 @@ public:
     void SetVisibility(const bool isVisible){ m_isVisible = isVisible; }
     void Pollute();
 
-    static void SetDirtyCount(uint8_t dirtyCount){ DirtyCount = dirtyCount; }
+    static void SetFrameCount(uint8_t dirtyCount){ FrameCount = dirtyCount; }
+
 protected:
     bool     m_isVisible;
     bool     m_isDirty;
-    uint32_t m_nodeIndex;
+    bool     m_isUseSingleMatrix;
     uint8_t  m_dirtyCount;
+    uint32_t m_nodeIndex;
 
     GeoMath::Matrix4f s, r, t;
     GeoMath::Matrix4f m_toWorld;
@@ -49,7 +53,7 @@ protected:
     SceneNodeList m_childNodes;
     ComponentList m_components;
 
-    inline static uint8_t DirtyCount = 1;
+    inline static uint8_t FrameCount = 1;
 };
 
 class Scene : public SceneNode{
@@ -57,9 +61,9 @@ public:
     Scene() : SceneNode(0, nullptr){};
 
     virtual void OnUpdate() override;
-    virtual void OnRender() override {}
+    virtual void OnRender() override;
 
-    virtual GeoMath::Matrix4f GetTransform() const override { return r * t; }
+    virtual GeoMath::Matrix4f GetTransform() const override { return GeoMath::Matrix4f(); }
 };
 
 class CameraNode : public SceneNode{
@@ -75,8 +79,8 @@ public:
     ) override;
 
     void SetLens(
-        const float zNear, const float zFar,
-        const float aspect, const float fovY
+        const float* zNear, const float* zFar,
+        const float* aspect, const float* fovY
     );
 
     GeoMath::Matrix4f GetView() const;
@@ -87,9 +91,6 @@ protected:
     float m_farZ;
     float m_aspect;
     float m_fov;
-
-    float m_pitch;
-    float m_yaw;
 
     GeoMath::Matrix4f m_proj;
 };

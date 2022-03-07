@@ -10,6 +10,13 @@
 
 Pipeline::Pipeline(std::string& name, uint16_t width, uint16_t height)
     : Application(name, width, height)
+    , m_isLeftMouseDown(false)
+    , m_lastMousePosX(0)
+    , m_lastMousePosY(0)
+    , m_camera(nullptr)
+    , m_viewport{0.0f, 0.0f, static_cast<float>(m_wndWidth), static_cast<float>(m_wndHeight), 0.0f, 1.0f}
+    , m_scissors{0, 0, m_wndWidth, m_wndHeight}
+    , m_backgroundColor(0.0f, 0.0f, 0.0f, 0.0f)
 {}
 
 Pipeline::~Pipeline(){}
@@ -53,8 +60,14 @@ void Pipeline::LoadContent(){
 
     auto cmdList = m_renderResource->GetCommandList();
 
-    SceneNode::SetDirtyCount(FrameCount);
+    SceneNode::SetFrameCount(FrameCount);
     auto model = Dx12Model("assets\\gltf\\scene.gltf", m_renderResource.get());
+
+    m_scene = std::move(model.root);
+    m_camera = new Dx12Camera(0, m_scene.get(), m_renderResource.get());
+    m_camera->SetMatrix(nullptr, &GeoMath::Matrix4f::Rotation(0.0f, 0.7f, 0.0f), &GeoMath::Matrix4f::Translation(0.0, 0.0, -50.0f));
+
+    m_scene->AddChild(std::unique_ptr<SceneNode>(m_camera));
 
     m_renderResource->ExecuteCommandList(cmdList);
     m_renderResource->Flush();
@@ -75,28 +88,37 @@ void Pipeline::OnTick(){
 
 void Pipeline::OnUpdate(){
     m_renderResource->OnUpdate();
+    m_scene->OnUpdate();
 }
 
 void Pipeline::OnRender(){
 
-    auto& currentFrameResource = m_renderResource->GetFrameResource();
-    auto  cmdList = m_renderResource->GetCommandList();
+    auto& currFrameRes = m_renderResource->GetFrameResource();
+    auto  cmdList      = m_renderResource->GetCommandList();
+    
+    cmdList->SetDescriptorHeaps(1, m_renderResource->ssvHeap.GetAddressOf());
+    cmdList->SetGraphicsRootSignature(m_renderResource->rootSignatureDeferred.Get());
 
     cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        currentFrameResource.renderTarget.Get(),
+        currFrameRes.renderTarget.Get(),
         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
     ));
 
-    const float clear_color_with_alpha[4] = { 0.45f, 0.55f, 0.60f, 1.00f };
+    cmdList->ClearDepthStencilView(m_renderResource->dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    cmdList->ClearRenderTargetView(currFrameRes.rtvHandle, m_backgroundColor, 0, nullptr);
 
-    cmdList->ClearRenderTargetView(currentFrameResource.rtvHandle, clear_color_with_alpha, 0, nullptr);
-    cmdList->OMSetRenderTargets(1, &currentFrameResource.rtvHandle, FALSE, nullptr);
+    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    cmdList->RSSetViewports(1, &m_viewport);
+    cmdList->RSSetScissorRects(1, &m_scissors);
+
+    cmdList->OMSetRenderTargets(1, &currFrameRes.rtvHandle, FALSE, &m_renderResource->dsvHandle);
 
     RenderScene();
-    RenderGUI();
+    //RenderGUI();
 
    cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        currentFrameResource.renderTarget.Get(),
+        currFrameRes.renderTarget.Get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT
     ));
 
@@ -105,8 +127,11 @@ void Pipeline::OnRender(){
 }
 
 void Pipeline::RenderScene(){
-
-
+    auto& currFrameRes = m_renderResource->GetFrameResource();
+    auto  cmdList      = m_renderResource->GetCommandList();
+    cmdList->SetGraphicsRootConstantBufferView(1, currFrameRes.mainConst->GetAddress()); 
+    
+    m_scene->OnRender();
 }
 
 void Pipeline::RenderGUI(){
@@ -125,12 +150,10 @@ void Pipeline::RenderGUI(){
         ImGui::ShowDemoWindow(&show_demo_window);
     }
 
-
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
     {
         static float f = 0.0f;
         static int counter = 0;
-        static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
         ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
@@ -139,7 +162,7 @@ void Pipeline::RenderGUI(){
         ImGui::Checkbox("Another Window", &show_another_window);
 
         ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+        ImGui::ColorEdit3("clear color", m_backgroundColor); // Edit 3 floats representing a color
 
         if(ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
             counter++;
@@ -153,7 +176,7 @@ void Pipeline::RenderGUI(){
     // 3. Show another simple window.
     if(show_another_window)
     {
-        ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+        ImGui::Begin("Another Window", &show_another_window);
         ImGui::Text("Hello from another window!");
         if(ImGui::Button("Close Me"))
             show_another_window = false;
@@ -166,7 +189,6 @@ void Pipeline::RenderGUI(){
 
 void Pipeline::OnDestroy(){
     m_renderResource->Flush();
-
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -178,14 +200,56 @@ void Pipeline::OnResize(const uint16_t width, const uint16_t height){
 
     m_renderResource->OnResize();
 
+    m_viewport.TopLeftX = 0.0f;
+    m_viewport.TopLeftY = 0.0f;
+    m_viewport.Width    = m_wndWidth;
+    m_viewport.Height   = m_wndHeight;
+    m_viewport.MaxDepth = 1.0f;
+    m_viewport.MinDepth = 0.0f;
+
+    m_scissors.left   = 0.0f;
+    m_scissors.top    = 0.0f;
+    m_scissors.right  = m_wndWidth;
+    m_scissors.bottom = m_wndHeight;
+
+    float aspRatio = GetAspectRatio();
+    m_camera->SetLens(nullptr, nullptr, &aspRatio, nullptr);
 }
 
 void Pipeline::OnKeyDown(const uint16_t key, const int16_t x, const int16_t y){
 
+    switch(key){
+        case WM_LBUTTONDOWN:
+            m_isLeftMouseDown = true;
+            break;
+        case WM_MOUSEMOVE:
+        {
+            auto& io = ImGui::GetIO();
+            if(m_isLeftMouseDown && !io.WantCaptureKeyboard && !io.WantCaptureMouse){
+                m_camera->Input(key, x - m_lastMousePosX, y - m_lastMousePosY);
+            }
+            m_lastMousePosX = x;
+            m_lastMousePosY = y;
+            break;
+        }
+        case WM_KEYDOWN:
+            m_camera->Input(x);
+            break;
+        default:
+            break;
+    }
+
 }
 
 void Pipeline::OnKeyUp(const uint16_t key, const int16_t x, const int16_t y){
+    switch(key){
+        case WM_LBUTTONUP:
+            m_isLeftMouseDown = false;
+            break;
 
+        default:
+            break;
+    }
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -226,12 +290,12 @@ LRESULT Pipeline::MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam){
         }
         case WM_KEYDOWN:
         {
-            OnKeyDown(static_cast<uint16_t>(wParam));
+            OnKeyDown(static_cast<uint16_t>(WM_KEYDOWN), static_cast<uint16_t>(wParam));
             return 0;
         }
         case WM_KEYUP:
         {
-            OnKeyUp(static_cast<uint16_t>(wParam));
+            OnKeyUp(static_cast<uint16_t>(WM_KEYUP), static_cast<uint16_t>(wParam));
             return 0;
         }
         case WM_DESTROY:

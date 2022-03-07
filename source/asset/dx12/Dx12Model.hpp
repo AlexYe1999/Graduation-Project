@@ -23,6 +23,6 @@ private:
 
     std::vector<std::shared_ptr<IComponent>>  m_meshes;
 
-    void BuildNode(SceneNode* parentNode, size_t nodeIndex);
+    std::unique_ptr<SceneNode> BuildNode(size_t nodeIndex, SceneNode* pParentNode, RenderResource* const renderResource);
 };
 

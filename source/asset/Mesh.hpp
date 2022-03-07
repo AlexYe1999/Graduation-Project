@@ -18,6 +18,7 @@ public:
     }
 
     virtual void Execute() override;
+    virtual void OnUpdate();
     virtual void OnRender();
 
 protected:

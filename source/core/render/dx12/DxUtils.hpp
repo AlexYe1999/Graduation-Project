@@ -8,7 +8,7 @@
 
 namespace DxUtils{
     
-    static ComPtr<ID3DBlob> D3DReadFileToBlob(const char* fileName){
+    inline ComPtr<ID3DBlob> D3DReadFileToBlob(const char* fileName){
 
         ComPtr<ID3DBlob> blob;
         std::ifstream fin(fileName, std::ios::binary);
@@ -27,12 +27,12 @@ namespace DxUtils{
         return blob;
     }
 
-    static ComPtr<ID3DBlob> CreateShaderFromFile(
+    inline ComPtr<ID3DBlob> CreateShaderFromFile(
         const char* csoFileNameInOut, const char* hlslFileName, 
         const char* entryPoint, const char* shaderModel
     ){   
 
-        ComPtr<ID3DBlob> blobOut = D3DReadFileToBlob(csoFileNameInOut);
+        ComPtr<ID3DBlob> blobOut = DxUtils::D3DReadFileToBlob(csoFileNameInOut);
 
         if(blobOut == nullptr){
             DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -43,24 +43,24 @@ namespace DxUtils{
         #endif
 
             ComPtr<ID3DBlob> errorBlob = nullptr;
-            D3DCompileFromFile(
+            ThrowIfFailed(D3DCompileFromFile(
                 Utils::ToWString(hlslFileName).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
                 entryPoint, shaderModel, dwShaderFlags, 0,
                 blobOut.GetAddressOf(), errorBlob.GetAddressOf()
-            );
+            ));
 
             if(errorBlob != nullptr){
                 OutputDebugStringA(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));
                 assert(0);
             }
 
-            assert(blobOut != nullptr);
-            if (csoFileNameInOut != ""){
-                D3DWriteBlobToFile(blobOut.Get(), Utils::ToWString(csoFileNameInOut).c_str(), FALSE);
-            }
+
+            ThrowIfFailed(D3DWriteBlobToFile(blobOut.Get(), Utils::ToWString(csoFileNameInOut).c_str(), FALSE));
+
         }
 
         return blobOut;
 
     }
+
 }

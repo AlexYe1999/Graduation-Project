@@ -1,6 +1,9 @@
 #pragma once
 #include "CommandQueue.hpp"
+#include "DefaultBuffer.hpp"
 #include "Device.hpp"
+#include "Dx12Shader.hpp"
+#include "Dx12Struct.hpp"
 #include "d3dx12.h"
 
 #include <cstdint>
@@ -14,6 +17,10 @@ struct FrameResource{
     uint64_t                      fence;
     ComPtr<ID3D12Resource>        renderTarget;
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+
+    std::unique_ptr<UploadBuffer> mainConst;
+    std::unique_ptr<UploadBuffer> objectConst;
+
 };
 
 class RenderResource{
@@ -44,14 +51,18 @@ public:
 
     void Flush(){ m_commandQueue->Flush(); }
 
+    void CreateRenderResource(size_t numObject = 0, size_t numMat = 0, size_t numTex = 0);
+
     FrameResource& GetFrameResource(){ return m_frameResources[m_frameIndex]; }
 
     ComPtr<ID3D12Device8> GetDevice() { return m_device->DxDevice(); }
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList(){ return m_cmdList; }
 
+
     uint64_t ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2>& cmdList){
         return m_commandQueue->ExecuteCommandList(cmdList);
     }
+
 
 private:
     HWND                               m_wnd;
@@ -60,6 +71,10 @@ private:
     uint16_t                           m_width;
     uint16_t                           m_height;
     uint32_t                           m_rtvDescriptorSize;
+    uint32_t                           m_dsvDescriptorSize;
+    uint32_t                           m_ssvDescriptorSize;
+
+    uint32_t                           m_numConstPerFrame;
 
     std::unique_ptr<Device>            m_device;
     std::unique_ptr<CommandQueue>      m_commandQueue;
@@ -68,6 +83,20 @@ private:
     ComPtr<IDXGISwapChain3>            m_dxgiSwapChain;
     ComPtr<ID3D12GraphicsCommandList2> m_cmdList;
 
+    ComPtr<ID3D12Resource>             m_depthStencil;
+
     ComPtr<ID3D12DescriptorHeap>       m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap>       m_descHeap;
+    ComPtr<ID3D12DescriptorHeap>       m_dsvHeap;
+
+public:
+    CD3DX12_CPU_DESCRIPTOR_HANDLE      dsvHandle;
+
+    ComPtr<ID3D12DescriptorHeap>       ssvHeap;
+    ComPtr<ID3D12RootSignature>        rootSignatureDeferred;
+    ComPtr<ID3D12PipelineState>        pipelineStateObjects[2];
+
+    std::unique_ptr<Dx12Shader>        vertexShaders[2];
+    std::unique_ptr<Dx12Shader>        pixelShaders[2];
+    D3D12_INPUT_LAYOUT_DESC            loadedLayoutDesc;
+
 };

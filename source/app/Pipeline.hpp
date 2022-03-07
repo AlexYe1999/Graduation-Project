@@ -33,13 +33,22 @@ private:
     void InitGUI();
 
     void LoadContent();
-    
+
     void RenderScene();
     void RenderGUI();
 
 protected:
 
     static const uint8_t               FrameCount = 3;
+
+    bool                               m_isLeftMouseDown;
+    uint16_t                           m_lastMousePosX;
+    uint16_t                           m_lastMousePosY;
+
+    Dx12Camera*                        m_camera;
+    D3D12_VIEWPORT                     m_viewport;
+    D3D12_RECT                         m_scissors;
+    GeoMath::Vector4f                  m_backgroundColor;
 
     std::unique_ptr<Scene>             m_scene;
     std::unique_ptr<RenderResource>    m_renderResource;

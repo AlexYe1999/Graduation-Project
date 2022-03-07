@@ -13,7 +13,7 @@
 
 namespace Utils{
     
-    template<typename T, size_t Alignment = 4>
+    template<size_t Alignment = 4, typename T>
     constexpr T CalcAlignment(T dataSize){
         return (dataSize+Alignment-1) & ~(Alignment-1);
     }

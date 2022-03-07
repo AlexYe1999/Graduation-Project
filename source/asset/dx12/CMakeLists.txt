@@ -6,6 +6,8 @@ set(DX12_ASSET
     Dx12Model.cpp
     Dx12SceneNode.hpp
     Dx12SceneNode.cpp
+    Dx12Shader.hpp
+    Dx12Shader.cpp
     Dx12Struct.hpp
     Dx12Texture.hpp
 )
@@ -23,7 +25,6 @@ PRIVATE
 
 target_link_libraries(Dx12Asset
     Utility
-    Dx12Resource
     Dx12
     dxgi.lib
     d3d12.lib

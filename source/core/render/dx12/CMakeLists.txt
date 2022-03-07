@@ -1,11 +1,19 @@
 set(BASIC_FILES
+    Buffer.hpp
     CommandQueue.hpp
     CommandQueue.cpp
-    d3dx12.h    
+    d3dx12.h      
+    DefaultBuffer.hpp
     Device.hpp
     Device.cpp
     DXSampleHelper.h
     DxUtils.hpp
+    PipelineStateObject.hpp
+    PipelineStateObject.cpp
+    RenderResource.hpp
+    RenderResource.cpp
+    UploadBuffer.hpp
+    Resource.hpp
 )
 
 add_library(Dx12 STATIC ${BASIC_FILES})
@@ -23,5 +31,3 @@ PRIVATE
     d3d12.lib
     dxgi.lib
 )
-
-add_subdirectory(resource)

@@ -1,6 +1,6 @@
 #pragma once
 #include "Texture.hpp"
-#include "DxUtils.hpp"
+#include "DxUtility.hpp"
 
 class Dx12Texture : public Texture{
 public:

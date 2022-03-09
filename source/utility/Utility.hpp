@@ -1,18 +1,24 @@
 #pragma once
-#include<cstdint>
-#include<cassert>
+#include <cstdint>
+#include <cassert>
+#include <codecvt>
 
-#include<codecvt>
-#include<string>
+#include <string>
+#include <memory>
+#include <unordered_map>
 
-#include<fstream>
-#include<filesystem>
+#include <fstream>
+#include <filesystem>
 
-#include<wrl.h>
-#include<windows.h>
+#include <wrl.h>
+#include <windows.h>
 
-namespace Utils{
-    
+namespace Utility{
+	
+	namespace PreDef{
+		const float PI = 3.1415926538f;
+	}
+
     template<size_t Alignment = 4, typename T>
     constexpr T CalcAlignment(T dataSize){
         return (dataSize+Alignment-1) & ~(Alignment-1);

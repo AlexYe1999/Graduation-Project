@@ -1,12 +1,13 @@
 #pragma once
 #include "Dx12SceneNode.hpp"
-#include "DxUtils.hpp"
+#include "Dx12Material.hpp"
+#include "DxUtility.hpp"
 #include "Model.hpp"
-#include "RenderResource.hpp"
+#include "GraphicsManager.hpp"
 
 class Dx12Model : public Model{
 public:
-    Dx12Model(const char* fileName, RenderResource* const renderResource);
+    Dx12Model(const char* fileName);
     
     //std::unique_ptr<Scene> LoadToDx12Scene(const ComPtr<ID3D12Device8>&, const ComPtr<ID3D12GraphicsCommandList2>&);
 
@@ -15,14 +16,16 @@ public:
 
 private:
 
-    ComPtr<ID3D12Device8>                     m_device;
+    Dx12GraphicsManager*                      m_graphicsMgr;
 
-    std::vector<UploadBuffer>                 m_vertexBuffer;
-    std::vector<UploadBuffer>                 m_indexBuffer;
-    std::vector<UploadBuffer>                 m_uploadBuffer;
+    std::vector<UploadBuffer>                 m_vertexBuffers;
+    std::vector<UploadBuffer>                 m_indexBuffers;
+    std::vector<UploadBuffer>                 m_uploadBuffers;
 
     std::vector<std::shared_ptr<IComponent>>  m_meshes;
+    std::vector<std::shared_ptr<Material>>    m_materials;
 
-    std::unique_ptr<SceneNode> BuildNode(size_t nodeIndex, SceneNode* pParentNode, RenderResource* const renderResource);
+    std::unique_ptr<SceneNode> BuildNode(size_t nodeIndex, SceneNode* pParentNode);
+
 };
 

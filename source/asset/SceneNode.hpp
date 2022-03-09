@@ -1,5 +1,5 @@
 #pragma once
-#include "Utils.hpp"
+#include "Utility.hpp"
 #include "Mesh.hpp"
 #include "GeoMath.hpp"
 
@@ -34,8 +34,6 @@ public:
     void SetVisibility(const bool isVisible){ m_isVisible = isVisible; }
     void Pollute();
 
-    static void SetFrameCount(uint8_t dirtyCount){ FrameCount = dirtyCount; }
-
 protected:
     bool     m_isVisible;
     bool     m_isDirty;
@@ -63,7 +61,7 @@ public:
     virtual void OnUpdate() override;
     virtual void OnRender() override;
 
-    virtual GeoMath::Matrix4f GetTransform() const override { return GeoMath::Matrix4f(); }
+    virtual GeoMath::Matrix4f GetTransform() const override { return m_isUseSingleMatrix ? r : r * t; }
 };
 
 class CameraNode : public SceneNode{

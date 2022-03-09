@@ -7,11 +7,11 @@ set(BASIC_FILES
     Device.hpp
     Device.cpp
     DXSampleHelper.h
-    DxUtils.hpp
+    DxUtility.hpp
     PipelineStateObject.hpp
     PipelineStateObject.cpp
-    RenderResource.hpp
-    RenderResource.cpp
+    GraphicsManager.hpp
+    GraphicsManager.cpp
     UploadBuffer.hpp
     Resource.hpp
 )

@@ -2,7 +2,7 @@
 #include <memory>
 #include "Application.hpp"
 #include "CommandQueue.hpp"
-#include "RenderResource.hpp" 
+#include "GraphicsManager.hpp" 
 #include "Device.hpp"
 #include "Dx12Model.hpp"
 
@@ -45,14 +45,12 @@ protected:
     uint16_t                           m_lastMousePosX;
     uint16_t                           m_lastMousePosY;
 
+    int                                m_cameraMode;
     Dx12Camera*                        m_camera;
-    D3D12_VIEWPORT                     m_viewport;
-    D3D12_RECT                         m_scissors;
-    GeoMath::Vector4f                  m_backgroundColor;
-
+    Dx12GraphicsManager*               m_graphicsMgr;
     std::unique_ptr<Scene>             m_scene;
-    std::unique_ptr<RenderResource>    m_renderResource;
 
+    GeoMath::Vector4f                  m_backgroundColor;
     ComPtr<ID3D12DescriptorHeap>       m_guiSrvDescHeap;
 
 };

@@ -1,5 +1,5 @@
 #pragma once
-#include "DxUtils.hpp"
+#include "DxUtility.hpp"
 
 class Shader{
 public:

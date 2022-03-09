@@ -1,5 +1,7 @@
 
 set(DX12_ASSET
+    Dx12Material.hpp
+    Dx12Material.cpp
     Dx12Mesh.hpp
     Dx12Mesh.cpp
     Dx12Model.hpp

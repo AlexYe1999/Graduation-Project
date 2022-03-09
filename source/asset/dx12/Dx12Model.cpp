@@ -1,51 +1,68 @@
 #include "Dx12Model.hpp"
 
 
-Dx12Model::Dx12Model(
-    const char* fileName, RenderResource* const renderResource
-)
+Dx12Model::Dx12Model(const char* fileName)
     : Model(fileName)
+    , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
 {
 
-    static Vertex0 vertex0;
-    static Vertex1 vertex1;
-
-    auto dxDevice = renderResource->GetDevice();
-
-    // Create Constant Buffer and Texture Resource 
-    renderResource->CreateRenderResource(m_model.nodes.size(), 0, 0);
-    // Create PipelineStateObject
+    auto dxDevice = m_graphicsMgr->GetDevice();
+    
+    // Create Material
     {
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.pRootSignature = renderResource->rootSignatureDeferred.Get();
-        psoDesc.InputLayout = {vertex0.inputLayout.data(), static_cast<unsigned int>(vertex0.inputLayout.size())};
-        psoDesc.VS = renderResource->vertexShaders[0]->GetByteCode();
-        psoDesc.PS = renderResource->pixelShaders[0]->GetByteCode();
-        psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-        psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-        psoDesc.RasterizerState.FrontCounterClockwise = true;
-        psoDesc.RasterizerState.MultisampleEnable = false;
-        psoDesc.RasterizerState.DepthClipEnable = true;
-        psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-        psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.SampleDesc.Count = 1;
-        psoDesc.SampleDesc.Quality = 0;
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-        psoDesc.DSVFormat     = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-        ThrowIfFailed(dxDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(renderResource->pipelineStateObjects[0].GetAddressOf())));
+        constexpr uint32_t matConstByteSize = Utility::CalcAlignment<256>(sizeof(MaterialConstant));
+        m_uploadBuffers.emplace_back(dxDevice, m_model.materials.size() * matConstByteSize);
+    
+        m_materials.reserve(m_model.materials.size());
+        MaterialConstant matConst;
+        for(size_t index = 0; index < m_model.materials.size(); index++){
+            auto& mat = m_model.materials[index];
         
-        psoDesc.VS = renderResource->vertexShaders[1]->GetByteCode();
-        psoDesc.PS = renderResource->pixelShaders[1]->GetByteCode();
-        psoDesc.InputLayout = {vertex1.inputLayout.data(), static_cast<unsigned int>(vertex1.inputLayout.size())};
+            matConst.alphaCutoff = static_cast<float>(mat.alphaCutoff);
+            matConst.essisiveFactor = GeoMath::Vector3f(
+                static_cast<float>(mat.emissiveFactor[0]),
+                static_cast<float>(mat.emissiveFactor[1]),
+                static_cast<float>(mat.emissiveFactor[2])
+            );
 
-        ThrowIfFailed(dxDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(renderResource->pipelineStateObjects[1].GetAddressOf())));
+            if(mat.extensions.find("KHR_materials_pbrSpecularGlossiness") != mat.extensions.end()){
+                auto& pbrParam   = mat.extensions["KHR_materials_pbrSpecularGlossiness"];
+                auto& diffuse    = pbrParam.Get("diffuseFactor");
+                auto& specular   = pbrParam.Get("specularFactor");
+                auto& glossiness = pbrParam.Get("glossinessFactor");
+            
+                matConst.diffuseFactor = GeoMath::Vector4f(
+                    static_cast<float>(diffuse.Get(0).GetNumberAsDouble()),
+                    static_cast<float>(diffuse.Get(1).GetNumberAsDouble()),
+                    static_cast<float>(diffuse.Get(2).GetNumberAsDouble()),
+                    static_cast<float>(diffuse.Get(3).GetNumberAsDouble())
+                );
+
+                matConst.specularFactor = GeoMath::Vector3f(
+                    static_cast<float>(specular.Get(0).GetNumberAsDouble()),
+                    static_cast<float>(specular.Get(1).GetNumberAsDouble()),
+                    static_cast<float>(specular.Get(2).GetNumberAsDouble())
+                );
+
+                matConst.glossinessFactor = static_cast<float>(glossiness.GetNumberAsDouble());
+            }
+            else{
+                auto& pbrParam = mat.pbrMetallicRoughness;
+
+
+
+            }
+
+            m_uploadBuffers.back().CopyData(
+                reinterpret_cast<uint8_t*>(&matConst),
+                matConstByteSize, index * matConstByteSize
+            );
+
+            m_materials.emplace_back(new Dx12Material(index, mat.doubleSided));
+        }
+
     }
-
+    
 
     // Create Mesh 
     m_meshes.reserve(m_model.meshes.size());
@@ -53,7 +70,7 @@ Dx12Model::Dx12Model(
 
         StaticMesh* staticMesh = new StaticMesh;
         for(const auto& primitive : mesh.primitives){
-            size_t   vertexCount = 0;
+            size_t vertexCount = 0;
             uint8_t* position = nullptr;
             uint8_t* normal   = nullptr;
             uint8_t* tangent  = nullptr;
@@ -96,8 +113,8 @@ Dx12Model::Dx12Model(
             );
             
             size_t indexBufferSize = sizeof(uint32_t) * accessor.count;
-            m_indexBuffer.emplace_back(dxDevice, indexBufferSize);
-            m_indexBuffer.back().CopyData(GetBuffer(accessor.bufferView) + accessor.byteOffset, indexBufferSize);
+            m_indexBuffers.emplace_back(dxDevice, indexBufferSize);
+            m_indexBuffers.back().CopyData(GetBuffer(accessor.bufferView) + accessor.byteOffset, indexBufferSize);
 
             assert(position != nullptr && normal != nullptr);
             switch(primitive.attributes.size()){
@@ -110,14 +127,15 @@ Dx12Model::Dx12Model(
                     vertex0.position.CopyToBuffer(data.get(), position, vertexCount);
                     vertex0.normal.CopyToBuffer(data.get(), normal, vertexCount);
 
-                    m_vertexBuffer.emplace_back(dxDevice, vertexBufferSize);
-                    m_vertexBuffer.back().CopyData(data.get(), vertexBufferSize);
+                    m_vertexBuffers.emplace_back(dxDevice, vertexBufferSize);
+                    m_vertexBuffers.back().CopyData(data.get(), vertexBufferSize);
 
                     staticMesh->CreateNewMesh(new Dx12Mesh(
-                        m_vertexBuffer.back(), vertexCount,
-                        m_indexBuffer.back(), accessor.count,
-                        vertex0, dxDevice, renderResource)
-                    );
+                        m_vertexBuffers.back(), vertexCount,
+                        m_indexBuffers.back(), accessor.count,
+                        PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_0,
+                        m_materials[primitive.material], dxDevice
+                    ));
                     break;
                 }
                 case 4:
@@ -132,14 +150,15 @@ Dx12Model::Dx12Model(
                     vertex1.tangent.CopyToBuffer(data.get(), tangent, vertexCount);
                     vertex1.texCoord.CopyToBuffer(data.get(), texcoord, vertexCount);
 
-                    m_vertexBuffer.emplace_back(dxDevice, vertexBufferSize);
-                    m_vertexBuffer.back().CopyData(data.get(), vertexBufferSize);
+                    m_vertexBuffers.emplace_back(dxDevice, vertexBufferSize);
+                    m_vertexBuffers.back().CopyData(data.get(), vertexBufferSize);
 
                     staticMesh->CreateNewMesh(new Dx12Mesh(
-                        m_vertexBuffer.back(), vertexCount,
-                        m_indexBuffer.back(), accessor.count,
-                        vertex1, dxDevice, renderResource)
-                    );
+                        m_vertexBuffers.back(), vertexCount,
+                        m_indexBuffers.back(), accessor.count,
+                        PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_1,
+                        m_materials[primitive.material], dxDevice
+                    ));
                     break;
                 }
                 default:
@@ -151,19 +170,20 @@ Dx12Model::Dx12Model(
         m_meshes.emplace_back(staticMesh);
     }
 
+    // Create All Resource
+    m_graphicsMgr->CreateRenderResource(m_model.nodes.size(), m_model.materials.size(), m_uploadBuffers.back(), 0);
+
     root = std::make_unique<Scene>();
     for(auto nodeIndex : m_model.scenes[0].nodes){
-        root->AddChild(BuildNode(nodeIndex, root.get(), renderResource));
+        root->AddChild(BuildNode(nodeIndex, root.get()));
     }
 
 }
 
-std::unique_ptr<SceneNode> Dx12Model::BuildNode(
-    size_t nodeIndex, SceneNode* pParentNode, RenderResource* const renderResource
-){
+std::unique_ptr<SceneNode> Dx12Model::BuildNode(size_t nodeIndex, SceneNode* pParentNode){
 
     auto glNode = m_model.nodes[nodeIndex];
-    std::unique_ptr<SceneNode> sceneNode(new Dx12SceneNode(nodeIndex, pParentNode, renderResource));
+    std::unique_ptr<SceneNode> sceneNode(new Dx12SceneNode(nodeIndex, pParentNode));
 
     GeoMath::Matrix4f S, R, T;
 
@@ -206,7 +226,7 @@ std::unique_ptr<SceneNode> Dx12Model::BuildNode(
 
     // Add ChildNode to ParentNode
     for(auto childIndex : glNode.children){
-        sceneNode->AddChild(BuildNode(childIndex, sceneNode.get(), renderResource));
+        sceneNode->AddChild(BuildNode(childIndex, sceneNode.get()));
     }
 
     return sceneNode;

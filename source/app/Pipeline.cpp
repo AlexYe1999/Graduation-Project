@@ -13,29 +13,27 @@ Pipeline::Pipeline(std::string& name, uint16_t width, uint16_t height)
     , m_isLeftMouseDown(false)
     , m_lastMousePosX(0)
     , m_lastMousePosY(0)
+    , m_cameraMode(0)
     , m_camera(nullptr)
-    , m_viewport{0.0f, 0.0f, static_cast<float>(m_wndWidth), static_cast<float>(m_wndHeight), 0.0f, 1.0f}
-    , m_scissors{0, 0, m_wndWidth, m_wndHeight}
+    , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
     , m_backgroundColor(0.0f, 0.0f, 0.0f, 0.0f)
 {}
 
 Pipeline::~Pipeline(){}
 
 void Pipeline::OnInit(){
-
     InitD3D();
     InitGUI();
     LoadContent();
-
 }
 
 void Pipeline::InitD3D(){
-    m_renderResource = std::make_unique<RenderResource>(FrameCount, m_wndWidth, m_wndHeight, AppFramework::GetWnd());
+    m_graphicsMgr->OnInit(FrameCount, m_wndWidth, m_wndHeight, AppFramework::GetWnd());
 }
 
 void Pipeline::InitGUI(){
 
-    auto dxDevice = m_renderResource->GetDevice();
+    auto dxDevice = m_graphicsMgr->GetDevice();
     D3D12_DESCRIPTOR_HEAP_DESC guiDescHeapDesc = {};
     guiDescHeapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     guiDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -58,19 +56,21 @@ void Pipeline::InitGUI(){
 
 void Pipeline::LoadContent(){
 
-    auto cmdList = m_renderResource->GetCommandList();
-
-    SceneNode::SetFrameCount(FrameCount);
-    auto model = Dx12Model("assets\\gltf\\scene.gltf", m_renderResource.get());
+    auto cmdList = m_graphicsMgr->GetCommandList();
+    auto model = Dx12Model("assets\\gltf\\scene.gltf");
 
     m_scene = std::move(model.root);
-    m_camera = new Dx12Camera(0, m_scene.get(), m_renderResource.get());
-    m_camera->SetMatrix(nullptr, &GeoMath::Matrix4f::Rotation(0.0f, 0.7f, 0.0f), &GeoMath::Matrix4f::Translation(0.0, 0.0, -50.0f));
+    m_scene->SetMatrix(&GeoMath::Matrix4f::Scale(1.0f, -1.0f, 1.0f), nullptr, nullptr);
+
+    float aspRatio = GetAspectRatio();
+    m_camera = new Dx12Camera(0, m_scene.get());
+    m_camera->SetLens(nullptr, nullptr, &aspRatio, nullptr);
+    m_camera->SetMatrix(nullptr, nullptr, &GeoMath::Matrix4f::Translation(0.0, 5.0, -10.0f));
 
     m_scene->AddChild(std::unique_ptr<SceneNode>(m_camera));
 
-    m_renderResource->ExecuteCommandList(cmdList);
-    m_renderResource->Flush();
+    m_graphicsMgr->ExecuteCommandList(cmdList);
+    m_graphicsMgr->Flush();
 }
 
 void Pipeline::OnTick(){
@@ -87,48 +87,23 @@ void Pipeline::OnTick(){
 }
 
 void Pipeline::OnUpdate(){
-    m_renderResource->OnUpdate();
+    m_graphicsMgr->OnUpdate(m_backgroundColor);
     m_scene->OnUpdate();
 }
 
 void Pipeline::OnRender(){
 
-    auto& currFrameRes = m_renderResource->GetFrameResource();
-    auto  cmdList      = m_renderResource->GetCommandList();
-    
-    cmdList->SetDescriptorHeaps(1, m_renderResource->ssvHeap.GetAddressOf());
-    cmdList->SetGraphicsRootSignature(m_renderResource->rootSignatureDeferred.Get());
-
-    cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        currFrameRes.renderTarget.Get(),
-        D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
-    ));
-
-    cmdList->ClearDepthStencilView(m_renderResource->dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-    cmdList->ClearRenderTargetView(currFrameRes.rtvHandle, m_backgroundColor, 0, nullptr);
-
-    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    cmdList->RSSetViewports(1, &m_viewport);
-    cmdList->RSSetScissorRects(1, &m_scissors);
-
-    cmdList->OMSetRenderTargets(1, &currFrameRes.rtvHandle, FALSE, &m_renderResource->dsvHandle);
-
     RenderScene();
-    //RenderGUI();
+    RenderGUI();
 
-   cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-        currFrameRes.renderTarget.Get(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT
-    ));
-
-   m_renderResource->OnRender(cmdList);
+    m_graphicsMgr->OnRender();
 
 }
 
 void Pipeline::RenderScene(){
-    auto& currFrameRes = m_renderResource->GetFrameResource();
-    auto  cmdList      = m_renderResource->GetCommandList();
+    auto& currFrameRes = m_graphicsMgr->GetFrameResource();
+    auto  cmdList      = m_graphicsMgr->GetCommandList();
+    
     cmdList->SetGraphicsRootConstantBufferView(1, currFrameRes.mainConst->GetAddress()); 
     
     m_scene->OnRender();
@@ -136,7 +111,7 @@ void Pipeline::RenderScene(){
 
 void Pipeline::RenderGUI(){
 
-    auto cmdList = m_renderResource->GetCommandList();
+    auto cmdList = m_graphicsMgr->GetCommandList();
 
     cmdList->SetDescriptorHeaps(1, m_guiSrvDescHeap.GetAddressOf());
 
@@ -150,36 +125,15 @@ void Pipeline::RenderGUI(){
         ImGui::ShowDemoWindow(&show_demo_window);
     }
 
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
     {
-        static float f = 0.0f;
-        static int counter = 0;
+        ImGui::Begin("Control Panel");
+        ImGui::ColorEdit3("Background Color", m_backgroundColor);
 
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 3);  
 
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &show_another_window);
-
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", m_backgroundColor); // Edit 3 floats representing a color
-
-        if(ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
         ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::End();
-    }
-
-    // 3. Show another simple window.
-    if(show_another_window)
-    {
-        ImGui::Begin("Another Window", &show_another_window);
-        ImGui::Text("Hello from another window!");
-        if(ImGui::Button("Close Me"))
-            show_another_window = false;
         ImGui::End();
     }
 
@@ -188,32 +142,19 @@ void Pipeline::RenderGUI(){
 }
 
 void Pipeline::OnDestroy(){
-    m_renderResource->Flush();
+    m_graphicsMgr->Flush();
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 }
 
 void Pipeline::OnResize(const uint16_t width, const uint16_t height){
-    m_wndWidth  = width;
-    m_wndHeight = height;
-
-    m_renderResource->OnResize();
-
-    m_viewport.TopLeftX = 0.0f;
-    m_viewport.TopLeftY = 0.0f;
-    m_viewport.Width    = m_wndWidth;
-    m_viewport.Height   = m_wndHeight;
-    m_viewport.MaxDepth = 1.0f;
-    m_viewport.MinDepth = 0.0f;
-
-    m_scissors.left   = 0.0f;
-    m_scissors.top    = 0.0f;
-    m_scissors.right  = m_wndWidth;
-    m_scissors.bottom = m_wndHeight;
+    m_wndWidth  = max(1, width);
+    m_wndHeight = max(1, height);
 
     float aspRatio = GetAspectRatio();
     m_camera->SetLens(nullptr, nullptr, &aspRatio, nullptr);
+    m_graphicsMgr->OnResize(m_wndWidth, m_wndHeight);
 }
 
 void Pipeline::OnKeyDown(const uint16_t key, const int16_t x, const int16_t y){

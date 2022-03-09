@@ -4,7 +4,7 @@ set(ALL_FILES
     ReflectableStruct.hpp
     ReflectableStruct.cpp
     SSE_Helper.hpp
-    Utils.hpp
+    Utility.hpp
 )
 
 add_library(Utility ${ALL_FILES})

@@ -5,7 +5,7 @@ void Dx12SceneNode::OnUpdate(){
 
     if(m_dirtyCount > 0){
         
-        auto& currFrameRes = m_renderResource->GetFrameResource();
+        auto& currFrameRes = m_graphicsMgr->GetFrameResource();
         
         static ObjectConstBuffer objConst;
         objConst.toWorld = m_toWorld.Transpose();
@@ -13,7 +13,7 @@ void Dx12SceneNode::OnUpdate(){
 
         currFrameRes.objectConst->CopyData(
             reinterpret_cast<uint8_t*>(&objConst), sizeof(ObjectConstBuffer), 
-            m_nodeIndex * Utils::CalcAlignment<256>(sizeof(ObjectConstBuffer))
+            m_nodeIndex * Utility::CalcAlignment<256>(sizeof(ObjectConstBuffer))
         );
         m_dirtyCount--;
 
@@ -23,12 +23,12 @@ void Dx12SceneNode::OnUpdate(){
 
 void Dx12SceneNode::OnRender(){
 
-    auto& currFrameRes = m_renderResource->GetFrameResource();
-    auto  cmdList      = m_renderResource->GetCommandList();
+    auto& currFrameRes = m_graphicsMgr->GetFrameResource();
+    auto  cmdList      = m_graphicsMgr->GetCommandList();
 
     if(m_components.size() > 0){
         cmdList->SetGraphicsRootConstantBufferView(
-            0, currFrameRes.objectConst->GetAddress() + m_nodeIndex * Utils::CalcAlignment<256>(sizeof(ObjectConstBuffer))
+            0, currFrameRes.objectConst->GetAddress() + m_nodeIndex * Utility::CalcAlignment<256>(sizeof(ObjectConstBuffer))
         );
     }
 
@@ -42,13 +42,12 @@ void Dx12SceneNode::OnRender(){
 
 }
 
-
 void Dx12Camera::OnUpdate(){
     CameraNode::OnUpdate();
 
     if(m_dirtyCount > 0){
         
-        auto& framResource = m_renderResource->GetFrameResource();
+        auto& framResource = m_graphicsMgr->GetFrameResource();
         
         static MainConstBuffer mainConst;
         mainConst.view = m_toWorld.Inverse().Transpose(); 

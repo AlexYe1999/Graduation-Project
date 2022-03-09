@@ -110,10 +110,15 @@ struct MainConstBuffer{
     GeoMath::Matrix4f proj;
     GeoMath::Vector4f cameraPos;
 };
+static_assert(sizeof(MainConstBuffer) == 144);
 
 struct ObjectConstBuffer{
     GeoMath::Matrix4f toWorld;
     GeoMath::Matrix4f toLocal;
 };
+static_assert(sizeof(ObjectConstBuffer) == 128);
 
 struct MatConstBuffer{};
+
+inline Vertex0 vertex0;
+inline Vertex1 vertex1;

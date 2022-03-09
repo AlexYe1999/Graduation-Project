@@ -206,6 +206,7 @@ void CameraNode::SetLens(
     if(aspect != nullptr) m_aspect = *aspect;
 
     m_proj   = GeoMath::Matrix4f::Perspective(m_fov, m_aspect, m_nearZ, m_farZ);
+    m_dirtyCount = FrameCount;
 }
 
 GeoMath::Matrix4f CameraNode::GetView() const{

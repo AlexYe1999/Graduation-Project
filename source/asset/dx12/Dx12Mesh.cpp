@@ -3,19 +3,33 @@
 Dx12Mesh::Dx12Mesh(
     const UploadBuffer& vertexBuffer, size_t vertexCount,
     const UploadBuffer& indexBuffer, size_t indexCount,
-    const Dx12SOA& SOA, const ComPtr<ID3D12Device8>& device,
-    RenderResource* const renderResources
+    const PipelineStateFlag flag, const std::shared_ptr<Material>& material,
+    const ComPtr<ID3D12Device8>& device
 ) 
-    : m_indexCount(indexCount)
-    , m_renderResources(renderResources)
+    : Mesh(material)
+    , m_indexCount(indexCount)
+    , m_meshFlag(flag)
+    , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
 {
 
-    auto& varTypeData = SOA.GetVarTypeData();
+    auto GetSOA = [](uint64_t flag) -> Dx12SOA&{
+        switch(flag){
+            case Utility::Predef::PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_0:
+                return vertex0;
+            case Utility::Predef::PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_1:
+                return vertex1;
+            default:
+                return vertex1;
+                break;
+        }
+    };
+
+    auto& varTypeData = GetSOA(m_meshFlag).GetVarTypeData();
 
     m_vertexBufferView.clear();
     m_vertexBufferView.resize(varTypeData.size());
    
-    auto cmdList = renderResources->GetCommandList();
+    auto cmdList = m_graphicsMgr->GetCommandList();
     m_vertexBuffer = std::make_unique<DefaultBuffer>(device, cmdList, vertexBuffer);
     m_indexBuffer  = std::make_unique<DefaultBuffer>(device, cmdList, indexBuffer);
 
@@ -36,30 +50,15 @@ Dx12Mesh::Dx12Mesh(
     m_indexBufferView.BufferLocation = m_indexBuffer->GetAddress();
     m_indexBufferView.SizeInBytes    = m_indexBuffer->GetByteSize();
     m_indexBufferView.Format         = DXGI_FORMAT_R32_UINT;
-    m_layoutDesc = {SOA.inputLayout.data(), static_cast<unsigned int>(SOA.inputLayout.size())};
 
 }
 
 void Dx12Mesh::OnRender(){
 
-    auto cmdList = m_renderResources->GetCommandList();
-    auto loadedLayoutDesc = m_renderResources->loadedLayoutDesc;
+    m_material->OnRender();
+    m_graphicsMgr->SetPipelineStateFlag(m_meshFlag, 0x7, true);
 
-    if(loadedLayoutDesc.pInputElementDescs != m_layoutDesc.pInputElementDescs 
-    || loadedLayoutDesc.NumElements != m_layoutDesc.NumElements
-    ){
-        if(loadedLayoutDesc.NumElements == 2){
-            cmdList->SetPipelineState(m_renderResources->pipelineStateObjects[0].Get());
-        }
-        else{
-            cmdList->SetPipelineState(m_renderResources->pipelineStateObjects[1].Get());
-        }
-
-        loadedLayoutDesc.pInputElementDescs = m_layoutDesc.pInputElementDescs;
-        loadedLayoutDesc.NumElements = m_layoutDesc.NumElements;
-
-    }
-
+    auto cmdList = m_graphicsMgr->GetCommandList();
     cmdList->IASetVertexBuffers(0, m_vertexBufferView.size(), m_vertexBufferView.data());
     cmdList->IASetIndexBuffer(&m_indexBufferView);
     cmdList->DrawIndexedInstanced(m_indexCount, 1, 0, 0, 0);

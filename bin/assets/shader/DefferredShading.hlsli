@@ -10,6 +10,24 @@ cbuffer ObjBuffer : register(b1){
     matrix gToLocal;
 };
 
+cbuffer MatBuffer : register(b2){
+    float gAlphaCutoff;
+    float3 padding;
+
+    uint   gMiscMask;
+    float3 gEssisiveFactor;
+    float4 gBaseColor;
+    float4 gMiscVector;
+
+    float2 gNormalTexScale;
+    float2 gOcclusionTexScale;
+    float2 gEssisiveTexScale;
+    float2 gBasicTexScale;
+    float2 gTex4TexScale;
+    float2 gTex5TexScale;
+};
+
+
 SamplerState gSampler : register(s0);
 
 struct BasicVertex{

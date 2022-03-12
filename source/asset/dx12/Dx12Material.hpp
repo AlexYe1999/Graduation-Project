@@ -4,12 +4,13 @@
 
 class Dx12Material : public Material{
 public:
-    Dx12Material(uint32_t matIndex, bool isDoubleSide);
+    Dx12Material(D3D12_GPU_VIRTUAL_ADDRESS matAddress, bool isDoubleSide);
 
     virtual void OnRender();
 
 protected:
     uint64_t                   m_matFlag;
     Dx12GraphicsManager* const m_graphicsMgr;
+    D3D12_GPU_VIRTUAL_ADDRESS  m_matAddress;
 
 };

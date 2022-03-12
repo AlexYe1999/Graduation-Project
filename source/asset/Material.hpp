@@ -8,7 +8,7 @@ struct MaterialConstant{
 
     // float4
     float alphaCutoff = 0.5f;
-    GeoMath::Vector3f pad{0.0f, 0.0f, 0.0f};
+    GeoMath::Vector3f padding{0.0f, 0.0f, 0.0f};
 
     // float4
     uint16_t materialType = 0x0000;
@@ -58,11 +58,6 @@ static_assert(sizeof(MaterialConstant) == 112);
 
 class Material{
 public:
-    Material(uint32_t matIndex)
-        : m_matIndex(matIndex)
-    {}
+    Material(){}
     virtual void OnRender() = 0;
-
-private:
-    uint32_t m_matIndex;
 };

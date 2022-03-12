@@ -1,7 +1,8 @@
 #include "Dx12Material.hpp"
 
-Dx12Material::Dx12Material(uint32_t matIndex, bool isDoubleSide)
-    : Material(matIndex)
+Dx12Material::Dx12Material(D3D12_GPU_VIRTUAL_ADDRESS matAddress, bool isDoubleSide)
+    : Material()
+    , m_matAddress(matAddress)
     , m_matFlag(PipelineStateFlag::PIPELINE_STATE_INITIAL_FLAG)
     , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
 {
@@ -11,4 +12,5 @@ Dx12Material::Dx12Material(uint32_t matIndex, bool isDoubleSide)
 
 void Dx12Material::OnRender(){
     m_graphicsMgr->SetPipelineStateFlag(m_matFlag, 0x38, false);
+    m_graphicsMgr->GetCommandList()->SetGraphicsRootConstantBufferView(2, m_matAddress);
 }

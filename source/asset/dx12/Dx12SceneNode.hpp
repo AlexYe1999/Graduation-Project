@@ -20,7 +20,6 @@ protected:
     Dx12GraphicsManager* const m_graphicsMgr;
 };
 
-
 class Dx12Camera : public CameraNode{
 public:
     Dx12Camera(uint32_t nodeIndex, SceneNode* pParentNode)

@@ -7,13 +7,66 @@ Dx12Model::Dx12Model(const char* fileName)
 {
 
     auto dxDevice = m_graphicsMgr->GetDevice();
+    auto cmdList  = m_graphicsMgr->GetCommandList();
+    uint8_t  frameCount = m_graphicsMgr->GetFrameCount();
+    uint32_t numObjectPerFrame = m_model.nodes.size() + 1;
+    uint32_t cbvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    // Create Resource Heap
+    {
+        // Create Constant buffer descriptorHeap
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.NumDescriptors = frameCount * numObjectPerFrame + m_model.materials.size() + m_model.materials.size();
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(dxDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
+
+        // Create Perframe Resource
+        {
+
+            constexpr size_t mainConstByteSize = Utility::CalcAlignment<256>(sizeof(MainConstBuffer));
+            constexpr size_t objectConstByteSize = Utility::CalcAlignment<256>(sizeof(ObjectConstBuffer));
     
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+            for(size_t index = 0; index < frameCount; index++){
+
+                auto& frameResource = m_graphicsMgr->GetFrameResource(index);
+                CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+                // Create Main Constant buffer and view
+                frameResource.mainConst = std::make_unique<UploadBuffer>(dxDevice, mainConstByteSize);
+
+                cbvHandle.Offset(index * numObjectPerFrame, cbvDescriptorSize);
+                cbvDesc.BufferLocation = frameResource.mainConst->GetAddress();
+                cbvDesc.SizeInBytes = mainConstByteSize;
+
+                dxDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
+
+                frameResource.objectConst = std::make_unique<UploadBuffer>(dxDevice, objectConstByteSize * numObjectPerFrame);
+
+                // Create Object Constant buffer and view
+                size_t virtualAddress = frameResource.objectConst->GetAddress();
+                for(size_t offset = 0; offset < numObjectPerFrame; offset++){
+
+                    cbvHandle.Offset(1, cbvDescriptorSize);
+                    cbvDesc.BufferLocation = virtualAddress;
+                    cbvDesc.SizeInBytes = objectConstByteSize;
+
+                    dxDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
+                    virtualAddress += objectConstByteSize;
+                }
+
+            }
+
+        }
+
+    }
+
     // Create Material
     {
         constexpr uint32_t matConstByteSize = Utility::CalcAlignment<256>(sizeof(MaterialConstant));
         m_uploadBuffers.emplace_back(dxDevice, m_model.materials.size() * matConstByteSize);
-    
-        m_materials.reserve(m_model.materials.size());
+
         MaterialConstant matConst;
         for(size_t index = 0; index < m_model.materials.size(); index++){
             auto& mat = m_model.materials[index];
@@ -49,8 +102,6 @@ Dx12Model::Dx12Model(const char* fileName)
             else{
                 auto& pbrParam = mat.pbrMetallicRoughness;
 
-
-
             }
 
             m_uploadBuffers.back().CopyData(
@@ -58,14 +109,31 @@ Dx12Model::Dx12Model(const char* fileName)
                 matConstByteSize, index * matConstByteSize
             );
 
-            m_materials.emplace_back(new Dx12Material(index, mat.doubleSided));
+        }
+
+        matConstBuffer = std::make_unique<DefaultBuffer>(dxDevice, cmdList, m_uploadBuffers.back());
+        m_materials.reserve(m_model.materials.size());
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(
+            cbvHeap->GetCPUDescriptorHandleForHeapStart(),
+            numObjectPerFrame * frameCount, cbvDescriptorSize
+        );
+
+        D3D12_GPU_VIRTUAL_ADDRESS virtualAddress = matConstBuffer->GetAddress();
+        for(uint32_t index = 0; index < m_model.materials.size(); index++){
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {virtualAddress, matConstByteSize};
+            dxDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
+            m_materials.emplace_back(new Dx12Material(virtualAddress, m_model.materials[index].doubleSided));
+            
+            virtualAddress += matConstByteSize;
+            cbvHandle.Offset(1, cbvDescriptorSize);
         }
 
     }
-    
 
     // Create Mesh 
     m_meshes.reserve(m_model.meshes.size());
+    uint64_t virtualAddress = matConstBuffer->GetAddress();
     for(auto& mesh : m_model.meshes){
 
         StaticMesh* staticMesh = new StaticMesh;
@@ -171,8 +239,6 @@ Dx12Model::Dx12Model(const char* fileName)
     }
 
     // Create All Resource
-    m_graphicsMgr->CreateRenderResource(m_model.nodes.size(), m_model.materials.size(), m_uploadBuffers.back(), 0);
-
     root = std::make_unique<Scene>();
     for(auto nodeIndex : m_model.scenes[0].nodes){
         root->AddChild(BuildNode(nodeIndex, root.get()));
@@ -210,9 +276,9 @@ std::unique_ptr<SceneNode> Dx12Model::BuildNode(size_t nodeIndex, SceneNode* pPa
     if(matrix.size() > 0){
 
         GeoMath::Matrix4f toWorld(
-            matrix[0], matrix[1], matrix[2], matrix[3],
-            matrix[4], matrix[5], matrix[6], matrix[7],
-            matrix[8], matrix[9], matrix[10], matrix[11],
+            matrix[0],  matrix[1],  matrix[2],  matrix[3],
+            matrix[4],  matrix[5],  matrix[6],  matrix[7],
+            matrix[8],  matrix[9],  matrix[10], matrix[11],
             matrix[12], matrix[13], matrix[14], matrix[15]
         );
 

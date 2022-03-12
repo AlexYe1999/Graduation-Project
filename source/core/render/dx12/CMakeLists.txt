@@ -8,12 +8,14 @@ set(BASIC_FILES
     Device.cpp
     DXSampleHelper.h
     DxUtility.hpp
-    PipelineStateObject.hpp
-    PipelineStateObject.cpp
+    GBuffer.hpp
     GraphicsManager.hpp
     GraphicsManager.cpp
-    UploadBuffer.hpp
+    ReadBackBuffer.hpp
+    ReadBackBuffer.cpp
     Resource.hpp
+    Texture2D.hpp
+    UploadBuffer.hpp
 )
 
 add_library(Dx12 STATIC ${BASIC_FILES})

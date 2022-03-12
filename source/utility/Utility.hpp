@@ -5,6 +5,8 @@
 
 #include <string>
 #include <memory>
+#include <tuple>
+#include <array>
 #include <unordered_map>
 
 #include <fstream>

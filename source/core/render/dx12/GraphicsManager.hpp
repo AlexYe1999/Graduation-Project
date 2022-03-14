@@ -40,8 +40,12 @@ public:
         m_cmdList = m_commandQueue->GetCommandList();
     }
 
+    void OnRender(){
+        m_frameResources[m_frameIndex].fence = m_commandQueue->ExecuteCommandList(m_cmdList);
+        m_dxgiSwapChain->Present(1, 0);
+    }
+
     ComPtr<ID3D12Device8> GetDevice() const { return m_device->DxDevice(); }
-    ComPtr<IDXGISwapChain3> GetSwapChain() const{ return m_dxgiSwapChain; }
     ComPtr<ID3D12GraphicsCommandList2> GetCommandList() const { return m_cmdList; }
 
     uint64_t ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2>& cmdList) const {
@@ -79,13 +83,14 @@ protected:
     using PipelineStateObjects = std::unordered_map<uint64_t, ComPtr<ID3D12PipelineState>>;
 
     Shaders                            m_vertexShaders;
-    Shaders                            m_geomertyShaders;
+    Shaders                            m_geometryShaders;
     Shaders                            m_pixelShaders;
 
     uint64_t                           m_cachedPipelineFlag;
     uint64_t                           m_currentPipelineFlag;
     PipelineStateObjects               m_pipelineStateObjects;
 
+    ComPtr<ID3D12DescriptorHeap>       m_rtvHeap;
     Dx12GraphicsManager();
     ~Dx12GraphicsManager(){ m_commandQueue->Flush(); }
 

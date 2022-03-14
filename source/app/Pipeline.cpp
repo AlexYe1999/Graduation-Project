@@ -22,7 +22,7 @@ Pipeline::Pipeline(std::string& name, uint16_t width, uint16_t height)
     , m_gbufferViewOffset(0)
     , m_backgroundColor(0.0f, 0.0f, 0.0f, 0.0f)
     , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
-    , m_viewports{}
+    , m_viewport{}
     , m_scissors{}
 {}
 
@@ -46,24 +46,38 @@ void Pipeline::InitD3D(){
 
     // Create Deffered Rendering Rootsignature
     {
-        CD3DX12_ROOT_PARAMETER rootParameter[3] = {};
+        CD3DX12_ROOT_PARAMETER rootParameter[4] = {};
+        D3D12_DESCRIPTOR_RANGE range{
+            D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+            5, 0, 0, 0
+        };
 
         rootParameter[0].InitAsConstantBufferView(1);
         rootParameter[1].InitAsConstantBufferView(0);
         rootParameter[2].InitAsConstantBufferView(2);
+        rootParameter[3].InitAsDescriptorTable(1, &range);
 
-        const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
-            0,                                // shaderRegister
-            D3D12_FILTER_ANISOTROPIC,         // filter
-            D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-            D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-            D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
-            0.0f,                             // mipLODBias
-            8                                 // maxAnisotropy
-        );                               
+        const D3D12_STATIC_SAMPLER_DESC samplers[2] = {
+            CD3DX12_STATIC_SAMPLER_DESC(
+                0,                                // shaderRegister
+                D3D12_FILTER_MIN_MAG_MIP_POINT,   // filter
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP   // addressW
+            ),
+            CD3DX12_STATIC_SAMPLER_DESC(
+                1,                                // shaderRegister
+                D3D12_FILTER_ANISOTROPIC,         // filter
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
+                0.0f,                             // mipLODBias
+                8                                 // maxAnisotropy
+            )
+        };
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
-            3, rootParameter, 1, &anisotropicWrap,
+            4, rootParameter, 2, samplers,
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
         );
 
@@ -95,44 +109,19 @@ void Pipeline::InitD3D(){
 
     for(auto layoutFlag : layoutFlags){
         for(auto matFlag : matFlags){
-            m_graphicsMgr->CreatePipelineStateObject(layoutFlag | matFlag, m_deferredRootSignature);
-        }
-    }
-
-    {
-
-        // Create Descriptor Heap
-        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = 3 + 5 * 3;
-        rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(dxDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-
-        D3D12_DESCRIPTOR_HEAP_DESC srvDescHeapDesc = {};
-        srvDescHeapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        srvDescHeapDesc.NumDescriptors = 5 * 3;
-
-        dxDevice->CreateDescriptorHeap(&srvDescHeapDesc, IID_PPV_ARGS(&m_srvHeap));
- 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvCPUHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
-        CD3DX12_GPU_DESCRIPTOR_HANDLE srvGPUHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-
-        for(uint32_t index = 0; index < 3; index++){
-            auto& frameResource = m_graphicsMgr->GetFrameResource(index);
-
-            frameResource.rtvHandle = rtvHandle;
-            rtvHandle.Offset(1, m_rtvDescriptorSize);
-
-            frameResource.gbuffer = std::make_unique<PrePass>(
-                dxDevice, rtvHandle, srvCPUHandle, srvGPUHandle
+            m_graphicsMgr->CreatePipelineStateObject(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_GBUFFER | layoutFlag | matFlag,
+                m_deferredRootSignature
             );
-            rtvHandle.Offset(5, m_rtvDescriptorSize);
-            srvCPUHandle.Offset(5, m_svvDescriptorSize);
-            srvGPUHandle.Offset(5, m_svvDescriptorSize);
         }
     }
+
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_2  |
+        PipelineStateFlag::PIPELINE_STATE_CULL_MODE_BACK |
+        PipelineStateFlag::PIPELINE_STATE_FRONT_CLOCKWISE, 
+        m_deferredRootSignature
+    );
 
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.NumDescriptors = 1;
@@ -223,30 +212,67 @@ void Pipeline::OnUpdate(){
 
 void Pipeline::OnRender(){
 
-    // Update New Frame Resource
     auto& currFrameRes = m_graphicsMgr->GetFrameResource();
     auto  cmdList      = m_graphicsMgr->GetCommandList();
 
+    m_graphicsMgr->SetPipelineStateFlag(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_GBUFFER, 0x7000, false
+    );
+
+    D3D12_VIEWPORT viewPorts[5] = {
+        m_viewport, m_viewport, m_viewport,
+        m_viewport, m_viewport
+    };
+
+    D3D12_RECT scissors[5] = {
+        m_scissors, m_scissors, m_scissors,
+        m_scissors, m_scissors
+    };
+
+    cmdList->SetGraphicsRootSignature(m_deferredRootSignature.Get());
+    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    cmdList->RSSetViewports(5, viewPorts);
+    cmdList->RSSetScissorRects(5, scissors);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+    auto [rtvHangles, numGBuffer] = currFrameRes.gbuffer->AsRenderTarget(cmdList);
+    cmdList->OMSetRenderTargets(numGBuffer, rtvHangles, FALSE, &dsvHandle);
+
+    RenderScene();
+
+    // Render to back buffer
     cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
         currFrameRes.renderTarget.Get(),
         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
     ));
 
-    cmdList->SetGraphicsRootSignature(m_deferredRootSignature.Get());
+    m_graphicsMgr->SetPipelineStateFlag(
+        PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_2  |
+        PipelineStateFlag::PIPELINE_STATE_CULL_MODE_BACK |
+        PipelineStateFlag::PIPELINE_STATE_FRONT_CLOCKWISE,
+        0xFFFFFFFF, true
+    );
 
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-    cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    cmdList->IASetIndexBuffer(nullptr);
+    cmdList->IASetVertexBuffers(0, 0, nullptr);
+
+    cmdList->SetDescriptorHeaps(1, currFrameRes.gbuffer->GetSRVHeap().GetAddressOf());
+    cmdList->SetGraphicsRootDescriptorTable(
+        3, currFrameRes.gbuffer->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart()
+    );
+
+    cmdList->RSSetViewports(1, &m_viewport);
+    cmdList->RSSetScissorRects(1, &m_scissors);
+
     cmdList->ClearRenderTargetView(currFrameRes.rtvHandle, m_backgroundColor, 0, nullptr);
+    cmdList->OMSetRenderTargets(1, &currFrameRes.rtvHandle, FALSE, nullptr);
 
-    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    currFrameRes.gbuffer->AsPixelShaderResource(cmdList);
+    cmdList->DrawInstanced(3, 1, 0, 0);
 
-    cmdList->RSSetViewports(1, m_viewports);
-    cmdList->RSSetScissorRects(1, m_scissors);
-
-    cmdList->OMSetRenderTargets(1, &currFrameRes.rtvHandle, FALSE, &dsvHandle);
-
-    //cmdList->SetDescriptorHeaps(1, m_srvHeap.GetAddressOf());
-    RenderScene();
     RenderGUI();
 
     cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -254,8 +280,7 @@ void Pipeline::OnRender(){
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT
     ));
 
-    currFrameRes.fence = m_graphicsMgr->ExecuteCommandList(cmdList);
-    m_graphicsMgr->GetSwapChain()->Present(1, 0);
+    m_graphicsMgr->OnRender();
 
 }
 
@@ -287,10 +312,10 @@ void Pipeline::RenderGUI(){
     {
         ImGui::Begin("Control Panel");
         ImGui::ColorEdit3("Background Color", m_backgroundColor);
+        ImGui::Separator();
 
-        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 3);  
-
-        ImGui::SameLine();
+        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 3);
+        ImGui::Separator();
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
@@ -314,17 +339,17 @@ void Pipeline::OnResize(const uint16_t width, const uint16_t height){
     m_wndWidth  = max(1, width);
     m_wndHeight = max(1, height);
 
-    m_viewports[0].TopLeftX = 0.0f;
-    m_viewports[0].TopLeftY = 0.0f;
-    m_viewports[0].Width    = m_wndWidth / 2;
-    m_viewports[0].Height   = m_wndHeight / 2;
-    m_viewports[0].MaxDepth = 1.0f;
-    m_viewports[0].MinDepth = 0.0f;
+    m_viewport.TopLeftX = 0.0f;
+    m_viewport.TopLeftY = 0.0f;
+    m_viewport.Width    = m_wndWidth;
+    m_viewport.Height   = m_wndHeight;
+    m_viewport.MaxDepth = 1.0f;
+    m_viewport.MinDepth = 0.0f;
 
-    m_scissors[0].left   = 0.0f;
-    m_scissors[0].top    = 0.0f;
-    m_scissors[0].right  = m_wndWidth / 2;
-    m_scissors[0].bottom = m_wndHeight / 2;
+    m_scissors.left   = 0.0f;
+    m_scissors.top    = 0.0f;
+    m_scissors.right  = m_wndWidth;
+    m_scissors.bottom = m_wndHeight;
 
     float aspRatio = GetAspectRatio();
     m_camera->SetLens(nullptr, nullptr, &aspRatio, nullptr);

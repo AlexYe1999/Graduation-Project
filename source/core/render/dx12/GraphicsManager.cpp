@@ -18,7 +18,8 @@ void Dx12GraphicsManager::OnInit(
     m_cmdList        = m_commandQueue->GetCommandList();
 
     auto dxDevice = m_device->DxDevice();
-    
+    uint32_t rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
     // Create SwapChain
     {
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -43,12 +44,36 @@ void Dx12GraphicsManager::OnInit(
 
     // Create Shader
     {
-        m_vertexShaders.push_back(std::make_unique<Dx12Shader>("BasicVertexShader", "vs_5_1"));
-        m_vertexShaders.push_back(std::make_unique<Dx12Shader>("TexVertexShader", "vs_5_1"));
-        m_pixelShaders.push_back(std::make_unique<Dx12Shader>("BasicPixelShader", "ps_5_1"));
-        m_pixelShaders.push_back(std::make_unique<Dx12Shader>("TexPixelShader", "ps_5_1"));
+        m_vertexShaders.push_back(std::make_unique<Dx12Shader>("BasicVertex", "vs_5_1"));
+        m_vertexShaders.push_back(std::make_unique<Dx12Shader>("TexVertex", "vs_5_1"));
+        m_vertexShaders.push_back(std::make_unique<Dx12Shader>("RTSVertex", "vs_5_1"));
+
+        m_pixelShaders.push_back(std::make_unique<Dx12Shader>("BasicPixel", "ps_5_1"));
+        m_pixelShaders.push_back(std::make_unique<Dx12Shader>("TexPixel", "ps_5_1"));
+        m_pixelShaders.push_back(std::make_unique<Dx12Shader>("RTSPixel", "ps_5_1"));
     }
 
+    // Create FrameResource Heap
+    {
+        // Create Descriptor Heap
+        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+        rtvHeapDesc.NumDescriptors = 3 + 5 * 3;
+        rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+        rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        ThrowIfFailed(dxDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+ 
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        for(uint32_t index = 0; index < 3; index++){
+            auto& frameResource = m_frameResources[index];
+
+            frameResource.rtvHandle = rtvHandle;
+            rtvHandle.Offset(1, rtvDescriptorSize);
+
+            frameResource.gbuffer = std::make_unique<PrePass>(dxDevice, rtvHandle);
+            rtvHandle.Offset(5, rtvDescriptorSize);
+        }
+    }
 }
 
 void Dx12GraphicsManager::OnResize(uint16_t width, uint16_t height){
@@ -93,18 +118,43 @@ void Dx12GraphicsManager::CreatePipelineStateObject(uint64_t flag, const ComPtr<
     if(psoIt == m_pipelineStateObjects.end()){
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 
+        switch(flag & 0x7000){
+            case PipelineStateFlag::PIPELINE_STATE_RENDER_GBUFFER:
+            {
+                psoDesc.NumRenderTargets = 5;
+                psoDesc.RTVFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                psoDesc.RTVFormats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                psoDesc.RTVFormats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                psoDesc.RTVFormats[3] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                psoDesc.RTVFormats[4] = DXGI_FORMAT_R32_UINT;
+                psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+                psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+                break;
+            }
+            default:
+            {
+                psoDesc.NumRenderTargets = 1;
+                psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+                psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+                psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+                psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+                psoDesc.DepthStencilState.DepthFunc      = D3D12_COMPARISON_FUNC_ALWAYS;
+            }
+
+        }
+
         switch(flag & 0x7){
-            case PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_0 :
+            case PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_0:
             {
                 psoDesc.InputLayout = {
-                    vertex0.inputLayout.data(), 
+                    vertex0.inputLayout.data(),
                     static_cast<unsigned int>(vertex0.inputLayout.size())
                 };
                 psoDesc.VS = m_vertexShaders[0]->GetByteCode();
                 psoDesc.PS = m_pixelShaders[0]->GetByteCode();
                 break;
             }
-            case PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_1 :
+            case PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_1:
             {
                 psoDesc.InputLayout = {
                     vertex1.inputLayout.data(),
@@ -112,6 +162,12 @@ void Dx12GraphicsManager::CreatePipelineStateObject(uint64_t flag, const ComPtr<
                 };
                 psoDesc.VS = m_vertexShaders[1]->GetByteCode();
                 psoDesc.PS = m_pixelShaders[1]->GetByteCode();
+                break;
+            }
+            case PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_2:
+            {
+                psoDesc.VS = m_vertexShaders[2]->GetByteCode();
+                psoDesc.PS = m_pixelShaders[2]->GetByteCode();
                 break;
             }
             default:
@@ -144,14 +200,10 @@ void Dx12GraphicsManager::CreatePipelineStateObject(uint64_t flag, const ComPtr<
         psoDesc.RasterizerState.MultisampleEnable = false;
         psoDesc.RasterizerState.DepthClipEnable = true;
         psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-        psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.SampleDesc.Count = 1;
         psoDesc.SampleDesc.Quality = 0;
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-        psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
         ThrowIfFailed(m_device->DxDevice()->CreateGraphicsPipelineState(
             &psoDesc, IID_PPV_ARGS(m_pipelineStateObjects[flag].GetAddressOf()))
@@ -165,7 +217,7 @@ void Dx12GraphicsManager::SetPipelineStateFlag(uint64_t flag, uint64_t mask, boo
 
     if(finalFlag && m_currentPipelineFlag != m_cachedPipelineFlag){
         m_cmdList->SetPipelineState(m_pipelineStateObjects[m_currentPipelineFlag].Get());
-        m_cachedPipelineFlag  = m_currentPipelineFlag;
+        m_cachedPipelineFlag = m_currentPipelineFlag;
     }
 
 }

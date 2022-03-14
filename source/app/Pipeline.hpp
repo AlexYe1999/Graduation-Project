@@ -53,18 +53,16 @@ protected:
     GeoMath::Vector4f                  m_backgroundColor;
 
     Dx12GraphicsManager*               m_graphicsMgr;
-    D3D12_VIEWPORT                     m_viewports[6];
-    D3D12_RECT                         m_scissors[6];
+    D3D12_VIEWPORT                     m_viewport;
+    D3D12_RECT                         m_scissors;
 
     ComPtr<ID3D12RootSignature>        m_deferredRootSignature;
 
     ComPtr<ID3D12Resource>             m_depthStencil;
     std::unique_ptr<DefaultBuffer>     m_matConstBuffer;
 
-    ComPtr<ID3D12DescriptorHeap>       m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_cbvHeap;
-    ComPtr<ID3D12DescriptorHeap>       m_srvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_guiSrvDescHeap;
 };
 

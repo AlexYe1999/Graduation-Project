@@ -70,19 +70,25 @@ namespace Utility{
         // Front   Counter-Clockwise 0x0000 0000 0000 0000 / 0x0000 0000 0000 0010
         
         enum PipelineStateFlag : uint64_t{
-            // Mask   0111                                  0x7
+            // Mask 00 0111                              0x0007
             PIPELINE_STATE_SHADER_COMB_0           = 0x00000000,
             PIPELINE_STATE_SHADER_COMB_1           = 0x00000001,
             PIPELINE_STATE_SHADER_COMB_2           = 0x00000002,
             PIPELINE_STATE_SHADER_COMB_3           = 0x00000003,
             // Shader State
-            // Mask  1 1000                                0x18
+            // Mask 01 1000                              0x0018
             PIPELINE_STATE_CULL_MODE_NONE          = 0x00000000,
             PIPELINE_STATE_CULL_MODE_FRONT         = 0x00000008,
             PIPELINE_STATE_CULL_MODE_BACK          = 0x00000010,
-            // Mask 10 0000                                0x20
+            // Mask 0000 000 0010 0000                   0x0020
             PIPELINE_STATE_FRONT_CLOCKWISE         = 0x00000000,
             PIPELINE_STATE_FRONT_COUNTER_CLOCKWISE = 0x00000020,
+
+            // Render Type 
+            // Mask 0111 0000 0000 0000                  0x7000
+            PIPELINE_STATE_RENDER_BACKBUFFER       = 0x00000000,
+            PIPELINE_STATE_RENDER_GBUFFER          = 0x00001000,
+            PIPELINE_STATE_RENDER_DXR_RAYTRACING   = 0x00002000,
 
             // Predefine
             PIPELINE_STATE_INITIAL_FLAG            = 0x00000000,

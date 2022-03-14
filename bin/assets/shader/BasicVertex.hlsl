@@ -1,4 +1,4 @@
-#include"DefferredShading.hlsli"
+#include"DeferredShading.hlsli"
 
 BasicPixel main(BasicVertex vsIn){
     BasicPixel vsOut;

@@ -1,4 +1,4 @@
-#include"DefferredShading.hlsli"
+#include"DeferredShading.hlsli"
 
 TexPixel main(TexVertex vsIn){
     TexPixel vsOut;

@@ -16,9 +16,10 @@ Device::Device(){
 #endif
 
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
-	uint32_t adapterIndex = 1;
 	bool adapterFound = false;
-	while (m_dxgiFactory->EnumAdapters1(adapterIndex, m_dxgiAdapter.GetAddressOf()) != DXGI_ERROR_NOT_FOUND) {
+
+	for(UINT adapterIndex = 0; m_dxgiFactory->EnumAdapterByGpuPreference(adapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&m_dxgiAdapter)) != DXGI_ERROR_NOT_FOUND; adapterIndex++){
+		
 		DXGI_ADAPTER_DESC1 desc;
 		m_dxgiAdapter->GetDesc1(&desc);
 		if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0) {
@@ -28,9 +29,11 @@ Device::Device(){
 				break;
 			}
 		}
+
 		m_dxgiAdapter = nullptr;
-		adapterIndex++;
 	}
+
+    ThrowIfFalse(IsDirectXRaytracingSupported(m_dxgiAdapter.Get()));
 
 #if defined(_DEBUG)
 	{

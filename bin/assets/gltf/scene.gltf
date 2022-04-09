@@ -2904,168 +2904,6 @@
     },
     {
       "uri": "scene_img6.png"
-    },
-    {
-      "uri": "scene_img7.png"
-    },
-    {
-      "uri": "scene_img8.png"
-    },
-    {
-      "uri": "scene_img9.png"
-    },
-    {
-      "uri": "scene_img10.png"
-    },
-    {
-      "uri": "scene_img11.png"
-    },
-    {
-      "uri": "scene_img12.png"
-    },
-    {
-      "uri": "scene_img13.png"
-    },
-    {
-      "uri": "scene_img14.png"
-    },
-    {
-      "uri": "scene_img15.png"
-    },
-    {
-      "uri": "scene_img16.png"
-    },
-    {
-      "uri": "scene_img17.png"
-    },
-    {
-      "uri": "scene_img18.png"
-    },
-    {
-      "uri": "scene_img19.png"
-    },
-    {
-      "uri": "scene_img20.png"
-    },
-    {
-      "uri": "scene_img21.png"
-    },
-    {
-      "uri": "scene_img22.png"
-    },
-    {
-      "uri": "scene_img23.png"
-    },
-    {
-      "uri": "scene_img24.png"
-    },
-    {
-      "uri": "scene_img25.png"
-    },
-    {
-      "uri": "scene_img26.png"
-    },
-    {
-      "uri": "scene_img27.png"
-    },
-    {
-      "uri": "scene_img28.png"
-    },
-    {
-      "uri": "scene_img29.png"
-    },
-    {
-      "uri": "scene_img30.png"
-    },
-    {
-      "uri": "scene_img31.png"
-    },
-    {
-      "uri": "scene_img32.png"
-    },
-    {
-      "uri": "scene_img33.png"
-    },
-    {
-      "uri": "scene_img34.png"
-    },
-    {
-      "uri": "scene_img35.png"
-    },
-    {
-      "uri": "scene_img36.png"
-    },
-    {
-      "uri": "scene_img37.png"
-    },
-    {
-      "uri": "scene_img38.png"
-    },
-    {
-      "uri": "scene_img39.png"
-    },
-    {
-      "uri": "scene_img40.png"
-    },
-    {
-      "uri": "scene_img41.png"
-    },
-    {
-      "uri": "scene_img42.png"
-    },
-    {
-      "uri": "scene_img43.png"
-    },
-    {
-      "uri": "scene_img44.png"
-    },
-    {
-      "uri": "scene_img45.png"
-    },
-    {
-      "uri": "scene_img46.png"
-    },
-    {
-      "uri": "scene_img47.png"
-    },
-    {
-      "uri": "scene_img48.png"
-    },
-    {
-      "uri": "scene_img49.png"
-    },
-    {
-      "uri": "scene_img50.png"
-    },
-    {
-      "uri": "scene_img51.png"
-    },
-    {
-      "uri": "scene_img52.png"
-    },
-    {
-      "uri": "scene_img53.png"
-    },
-    {
-      "uri": "scene_img54.png"
-    },
-    {
-      "uri": "scene_img55.png"
-    },
-    {
-      "uri": "scene_img56.png"
-    },
-    {
-      "uri": "scene_img57.png"
-    },
-    {
-      "uri": "scene_img58.png"
-    },
-    {
-      "uri": "scene_img59.png"
-    },
-    {
-      "uri": "scene_img60.png"
     }
   ],
   "materials": [
@@ -3077,7 +2915,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 17,
+        "index": 3,
         "texCoord": 0
       },
       "extensions": {
@@ -3089,7 +2927,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 16,
+            "index": 3,
             "texCoord": 0
           },
           "glossinessFactor": 0.9285442073,
@@ -3110,7 +2948,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 7,
+        "index": 3,
         "texCoord": 0
       },
       "extensions": {
@@ -3122,7 +2960,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 6,
+            "index": 3,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3169,7 +3007,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 25,
+        "index": 0,
         "texCoord": 0
       },
       "extensions": {
@@ -3181,7 +3019,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 24,
+            "index": 0,
             "texCoord": 0
           },
           "glossinessFactor": 0.8309832317,
@@ -3202,7 +3040,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 19,
+        "index": 0,
         "texCoord": 0
       },
       "extensions": {
@@ -3214,7 +3052,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 18,
+            "index": 0,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3235,7 +3073,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 1,
+        "index": 0,
         "texCoord": 0
       },
       "extensions": {
@@ -3268,7 +3106,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 51,
+        "index": 0,
         "texCoord": 0
       },
       "extensions": {
@@ -3280,7 +3118,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 50,
+            "index": 0,
             "texCoord": 0
           },
           "glossinessFactor": 0.770007622,
@@ -3301,7 +3139,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 5,
+        "index": 2,
         "texCoord": 0
       },
       "extensions": {
@@ -3313,7 +3151,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 4,
+            "index": 2,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3334,7 +3172,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 35,
+        "index": 2,
         "texCoord": 0
       },
       "extensions": {
@@ -3346,7 +3184,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 34,
+            "index": 2,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3367,7 +3205,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 27,
+        "index": 2,
         "texCoord": 0
       },
       "extensions": {
@@ -3379,7 +3217,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 26,
+            "index": 2,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3400,7 +3238,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 43,
+        "index": 2,
         "texCoord": 0
       },
       "extensions": {
@@ -3412,7 +3250,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 42,
+            "index": 2,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3459,7 +3297,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 3,
+        "index": 1,
         "texCoord": 0
       },
       "extensions": {
@@ -3471,7 +3309,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 2,
+            "index": 1,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3492,7 +3330,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 31,
+        "index": 1,
         "texCoord": 0
       },
       "extensions": {
@@ -3504,7 +3342,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 30,
+            "index": 1,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3525,7 +3363,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 39,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3537,7 +3375,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 38,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3558,7 +3396,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 45,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3570,7 +3408,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 44,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0.9,
@@ -3591,7 +3429,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 60,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3603,7 +3441,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 59,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3624,7 +3462,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 53,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3636,7 +3474,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 52,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3657,7 +3495,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 15,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3669,7 +3507,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 14,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3690,7 +3528,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 55,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3702,7 +3540,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 54,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3723,7 +3561,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 29,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3735,7 +3573,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 28,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0.040967987799999994,
@@ -3756,7 +3594,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 41,
+        "index": 6,
         "texCoord": 0
       },
       "extensions": {
@@ -3768,7 +3606,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 40,
+            "index": 6,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3789,7 +3627,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 47,
+        "index": 1,
         "texCoord": 0
       },
       "extensions": {
@@ -3801,7 +3639,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 46,
+            "index": 5,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3843,7 +3681,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 11,
+        "index": 0,
         "texCoord": 0
       },
       "extensions": {
@@ -3855,7 +3693,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 10,
+            "index": 5,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3876,7 +3714,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 33,
+        "index": 5,
         "texCoord": 0
       },
       "extensions": {
@@ -3888,7 +3726,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 32,
+            "index": 1,
             "texCoord": 0
           },
           "glossinessFactor": 0,
@@ -3909,7 +3747,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 23,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -3921,7 +3759,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 22,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.6358612805,
@@ -3942,7 +3780,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 37,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -3954,7 +3792,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 36,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.16,
@@ -3975,7 +3813,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 49,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -3987,7 +3825,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 48,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.6297637195,
@@ -4008,7 +3846,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 9,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -4020,7 +3858,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 8,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.3248856707,
@@ -4041,7 +3879,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 21,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -4053,7 +3891,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 20,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.5078125,
@@ -4074,7 +3912,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 58,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -4086,7 +3924,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 56,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.9407393293,
@@ -4096,7 +3934,7 @@
             0
           ],
           "specularGlossinessTexture": {
-            "index": 57,
+            "index": 4,
             "texCoord": 0
           }
         }
@@ -4111,7 +3949,7 @@
         1
       ],
       "emissiveTexture": {
-        "index": 13,
+        "index": 4,
         "texCoord": 0
       },
       "extensions": {
@@ -4123,7 +3961,7 @@
             1
           ],
           "diffuseTexture": {
-            "index": 12,
+            "index": 4,
             "texCoord": 0
           },
           "glossinessFactor": 0.9800000004,
@@ -5292,222 +5130,6 @@
     {
       "sampler": 0,
       "source": 6
-    },
-    {
-      "sampler": 0,
-      "source": 7
-    },
-    {
-      "sampler": 0,
-      "source": 8
-    },
-    {
-      "sampler": 0,
-      "source": 9
-    },
-    {
-      "sampler": 0,
-      "source": 10
-    },
-    {
-      "sampler": 0,
-      "source": 11
-    },
-    {
-      "sampler": 0,
-      "source": 12
-    },
-    {
-      "sampler": 0,
-      "source": 13
-    },
-    {
-      "sampler": 0,
-      "source": 14
-    },
-    {
-      "sampler": 0,
-      "source": 15
-    },
-    {
-      "sampler": 0,
-      "source": 16
-    },
-    {
-      "sampler": 0,
-      "source": 17
-    },
-    {
-      "sampler": 0,
-      "source": 18
-    },
-    {
-      "sampler": 0,
-      "source": 19
-    },
-    {
-      "sampler": 0,
-      "source": 20
-    },
-    {
-      "sampler": 0,
-      "source": 21
-    },
-    {
-      "sampler": 0,
-      "source": 22
-    },
-    {
-      "sampler": 0,
-      "source": 23
-    },
-    {
-      "sampler": 0,
-      "source": 24
-    },
-    {
-      "sampler": 0,
-      "source": 25
-    },
-    {
-      "sampler": 0,
-      "source": 26
-    },
-    {
-      "sampler": 0,
-      "source": 27
-    },
-    {
-      "sampler": 0,
-      "source": 28
-    },
-    {
-      "sampler": 0,
-      "source": 29
-    },
-    {
-      "sampler": 0,
-      "source": 30
-    },
-    {
-      "sampler": 0,
-      "source": 31
-    },
-    {
-      "sampler": 0,
-      "source": 32
-    },
-    {
-      "sampler": 0,
-      "source": 33
-    },
-    {
-      "sampler": 0,
-      "source": 34
-    },
-    {
-      "sampler": 0,
-      "source": 35
-    },
-    {
-      "sampler": 0,
-      "source": 36
-    },
-    {
-      "sampler": 0,
-      "source": 37
-    },
-    {
-      "sampler": 0,
-      "source": 38
-    },
-    {
-      "sampler": 0,
-      "source": 39
-    },
-    {
-      "sampler": 0,
-      "source": 40
-    },
-    {
-      "sampler": 0,
-      "source": 41
-    },
-    {
-      "sampler": 0,
-      "source": 42
-    },
-    {
-      "sampler": 0,
-      "source": 43
-    },
-    {
-      "sampler": 0,
-      "source": 44
-    },
-    {
-      "sampler": 0,
-      "source": 45
-    },
-    {
-      "sampler": 0,
-      "source": 46
-    },
-    {
-      "sampler": 0,
-      "source": 47
-    },
-    {
-      "sampler": 0,
-      "source": 48
-    },
-    {
-      "sampler": 0,
-      "source": 49
-    },
-    {
-      "sampler": 0,
-      "source": 50
-    },
-    {
-      "sampler": 0,
-      "source": 51
-    },
-    {
-      "sampler": 0,
-      "source": 52
-    },
-    {
-      "sampler": 0,
-      "source": 53
-    },
-    {
-      "sampler": 0,
-      "source": 54
-    },
-    {
-      "sampler": 0,
-      "source": 55
-    },
-    {
-      "sampler": 0,
-      "source": 56
-    },
-    {
-      "sampler": 0,
-      "source": 57
-    },
-    {
-      "sampler": 0,
-      "source": 58
-    },
-    {
-      "sampler": 0,
-      "source": 59
-    },
-    {
-      "sampler": 0,
-      "source": 60
     }
   ]
 }

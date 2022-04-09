@@ -340,6 +340,9 @@ namespace GeoMath{
     using Vector2f = Vector2<float>;
     using Vector3f = Vector3<float>;
     using Vector4f = Vector4<float>;
+    static_assert(sizeof(Vector2f) == 8);
+    static_assert(sizeof(Vector3f) == 12);
+    static_assert(sizeof(Vector4f) == 16);
 
     template<typename T>
     class Matrix4{};
@@ -372,6 +375,7 @@ namespace GeoMath{
 
         inline Matrix4<float> Inverse() const;
         inline Matrix4<float> Transpose() const;
+        inline Matrix4<float> AsMatrix3X4() const;
     public:
         static inline Matrix4<float> Identity();
         static inline Matrix4<float> glScale(float x, float y, float z);
@@ -594,7 +598,6 @@ namespace GeoMath{
             0.0f, 0.0f, 0.0f, 1.0f
         );
     }
-    
 
     Matrix4<float> Matrix4<float>::glScale(float x, float y, float z){
         return Matrix4<float>(

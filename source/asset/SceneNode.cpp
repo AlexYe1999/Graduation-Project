@@ -93,9 +93,15 @@ void Scene::OnRender(){
     }
 }
 
+void Scene::OnTraceRay(){
+    for(const auto& node : m_childNodes){
+        node->OnTraceRay();
+    }
+}
+
 CameraNode::CameraNode(uint32_t nodeIndex, SceneNode* pParentNode)
     : SceneNode(nodeIndex, pParentNode)
-    , m_nearZ(1.0f)
+    , m_nearZ(0.1f)
     , m_farZ(200.0f)
     , m_aspect(1.8f)
     , m_fov(0.30f * 3.1415926535f)

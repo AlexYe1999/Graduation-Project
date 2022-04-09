@@ -4,6 +4,7 @@
 Dx12GraphicsManager::Dx12GraphicsManager()
     : m_frameIndex(0)
     , m_frameCount(0)
+    , m_frameResolution(0.0f, 0.0f)
     , m_cachedPipelineFlag(PipelineStateFlag::PIPELINE_STATE_INITIAL_FLAG)
     , m_currentPipelineFlag(PipelineStateFlag::PIPELINE_STATE_INITIAL_FLAG)
 {}
@@ -11,15 +12,16 @@ Dx12GraphicsManager::Dx12GraphicsManager()
 void Dx12GraphicsManager::OnInit(
     HWND hWnd, uint8_t frameCount, uint16_t width, uint16_t height
 ){
-    m_frameCount     = frameCount;
-    m_device         = std::make_unique<Device>();
-    m_commandQueue   = std::make_unique<CommandQueue>(m_device->DxDevice());
-    m_frameResources = std::make_unique<FrameResource[]>(frameCount);
-    m_cmdList        = m_commandQueue->GetCommandList();
-
+    m_frameCount      = frameCount;
+    m_frameResolution = {static_cast<float>(width), static_cast<float>(height)};
+    m_device          = std::make_unique<Device>();
+    m_commandQueue    = std::make_unique<CommandQueue>(m_device->DxDevice());
+    m_frameResources  = std::make_unique<FrameResource[]>(frameCount);
+    m_cmdList         = m_commandQueue->GetCommandList();
     auto dxDevice = m_device->DxDevice();
     uint32_t rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
+    uint32_t uavDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    
     // Create SwapChain
     {
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -57,35 +59,45 @@ void Dx12GraphicsManager::OnInit(
     {
         // Create Descriptor Heap
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = 3 + 5 * 3;
+        rtvHeapDesc.NumDescriptors = m_frameCount + 5 * m_frameCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(dxDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
  
+        D3D12_DESCRIPTOR_HEAP_DESC rayTracingHeapDesc = {};
+        rayTracingHeapDesc.NumDescriptors = m_frameCount * 2 + 7;
+        rayTracingHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        rayTracingHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(dxDevice->CreateDescriptorHeap(&rayTracingHeapDesc, IID_PPV_ARGS(&m_rayTracingHeap)));
+       
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-        for(uint32_t index = 0; index < 3; index++){
+        CD3DX12_GPU_DESCRIPTOR_HANDLE rayTracingTargetHandle(m_rayTracingHeap->GetGPUDescriptorHandleForHeapStart());
+        CD3DX12_GPU_DESCRIPTOR_HANDLE rayTracingSrvHandle(m_rayTracingHeap->GetGPUDescriptorHandleForHeapStart(), m_frameCount, uavDescriptorSize);
+        for(uint32_t index = 0; index < m_frameCount; index++){
             auto& frameResource = m_frameResources[index];
 
             frameResource.rtvHandle = rtvHandle;
             rtvHandle.Offset(1, rtvDescriptorSize);
-
             frameResource.gbuffer = std::make_unique<PrePass>(dxDevice, rtvHandle);
             rtvHandle.Offset(5, rtvDescriptorSize);
+
+            frameResource.uavHandle = rayTracingTargetHandle;
+            rayTracingTargetHandle.Offset(1, uavDescriptorSize);
+            frameResource.srvHandle = rayTracingSrvHandle;
+            rayTracingSrvHandle.Offset(1, uavDescriptorSize);
         }
+    
     }
 }
 
 void Dx12GraphicsManager::OnResize(uint16_t width, uint16_t height){
 
-    m_commandQueue->Flush();
-
-    auto dxDevice = m_device->DxDevice();
-
+    auto& dxDevice = m_device->DxDevice();
+    
     {
-
         for(uint32_t index = 0; index < m_frameCount; index++){
             m_frameResources[index].renderTarget.Reset();
+            m_frameResources[index].rayTracingTarget.reset();
         }
 
         DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -94,20 +106,57 @@ void Dx12GraphicsManager::OnResize(uint16_t width, uint16_t height){
             m_frameCount, width, height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags
         ));
 
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = swapChainDesc.BufferDesc.Format;
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+        uint32_t uavDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rayTracingTargetHandle(m_rayTracingHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rayTracingSrvHandle(m_rayTracingHeap->GetCPUDescriptorHandleForHeapStart(), m_frameCount, uavDescriptorSize);
         for(uint32_t index = 0; index < m_frameCount; index++){
             auto& frameResource = m_frameResources[index];
 
-            frameResource.renderTarget.Reset();
             ThrowIfFailed(m_dxgiSwapChain->GetBuffer(index, IID_PPV_ARGS(frameResource.renderTarget.GetAddressOf())));
             dxDevice->CreateRenderTargetView(frameResource.renderTarget.Get(), nullptr, frameResource.rtvHandle);
+
+            frameResource.rayTracingTarget = std::make_unique<Texture2D>(dxDevice, swapChainDesc.BufferDesc.Format, width, height, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            dxDevice->CreateUnorderedAccessView(frameResource.rayTracingTarget->GetResource(), nullptr, &uavDesc, rayTracingTargetHandle);
+            rayTracingTargetHandle.Offset(1, uavDescriptorSize);
+            dxDevice->CreateShaderResourceView(frameResource.rayTracingTarget->GetResource(), &srvDesc, rayTracingSrvHandle);
+            rayTracingSrvHandle.Offset(1, uavDescriptorSize);
 
             frameResource.gbuffer->ResizeBuffer(width, height, dxDevice);
         }
 
     }
 
+    m_frameIndex      = (m_dxgiSwapChain->GetCurrentBackBufferIndex() + m_frameCount - 1) % m_frameCount;
+    m_frameResolution = {static_cast<float>(width), static_cast<float>(height)};
+}
 
-    m_frameIndex = (m_dxgiSwapChain->GetCurrentBackBufferIndex() + m_frameCount - 1) % m_frameCount;
+void Dx12GraphicsManager::OnUpdate(){
+
+    // Get New Frame Resource
+    m_frameIndex = (m_frameIndex + 1) % m_frameCount;
+    m_commandQueue->WaitForFenceValue(m_frameResources[m_frameIndex].fence);
+    m_cmdList = m_commandQueue->GetCommandList();
+
+    auto& currFrame = m_frameResources[m_frameIndex];
+    if(currFrame.isAccelerationStructureDitry == true){
+        auto& tlasDesc = currFrame.tlasDesc;
+        tlasDesc.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+        tlasDesc.SourceAccelerationStructureData = currFrame.topLevelAccelerationStructure->GetGPUVirtualAddress();
+        currFrame.isAccelerationStructureDitry = false;
+        m_cmdList->BuildRaytracingAccelerationStructure(&tlasDesc, 0, nullptr);
+    }
 
 }
 
@@ -201,7 +250,7 @@ void Dx12GraphicsManager::CreatePipelineStateObject(uint64_t flag, const ComPtr<
         psoDesc.RasterizerState.DepthClipEnable = true;
         psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
         psoDesc.SampleMask = UINT_MAX;
-        psoDesc.SampleDesc.Count = 1;
+        psoDesc.SampleDesc.Count   = 1;
         psoDesc.SampleDesc.Quality = 0;
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 

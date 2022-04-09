@@ -13,7 +13,7 @@
 #include <cassert>
 #include <d3d11.h>
 #include <d3d12.h>
-#include <dxgi1_5.h>
+#include <dxgi1_6.h>
 #include <stdexcept>
 #include <windowsx.h>
 #include <wrl.h>
@@ -45,4 +45,21 @@ inline void ThrowIfFailed(HRESULT hr)
     {
         throw HrException(hr);
     }
+}
+
+inline void ThrowIfFalse(bool flag){
+    if(!flag){
+        throw std::runtime_error("");
+    }
+}
+
+// Returns bool whether the device supports DirectX Raytracing tier.
+inline bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter)
+{
+    ComPtr<ID3D12Device> testDevice;
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+
+    return SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
+        && SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
+        && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }

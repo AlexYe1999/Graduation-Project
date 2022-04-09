@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
 #include "Application.hpp"
+#include "Dx12SceneNode.hpp"
 #include "GraphicsManager.hpp" 
-#include "Dx12Model.hpp"
 
 class Pipeline : public Application{
 public:
@@ -27,8 +27,6 @@ public:
 private:
     void InitD3D();
     void InitGUI();
-
-    void LoadContent();
 
     void RenderScene();
     void RenderGUI();
@@ -57,12 +55,25 @@ protected:
     D3D12_RECT                         m_scissors;
 
     ComPtr<ID3D12RootSignature>        m_deferredRootSignature;
-
     ComPtr<ID3D12Resource>             m_depthStencil;
     std::unique_ptr<DefaultBuffer>     m_matConstBuffer;
+    std::vector<Texture2D>             m_textures;
+
+    D3D12_DISPATCH_RAYS_DESC           m_dispatchRayDesc;
+    ComPtr<ID3D12StateObject>          m_rayTracingStateObject;
+    ComPtr<ID3D12RootSignature>        m_raytracingGlobalRootSignature;
+    ComPtr<ID3D12RootSignature>        m_hitLocalRootSignature;
+    std::unique_ptr<UploadBuffer>      m_shaderTable;
+
+    std::unique_ptr<DefaultBuffer>     m_rayTraceMeshInfoGpu;
+    std::unique_ptr<DefaultBuffer>     m_rayTraceIndexBuffer;
+    std::unique_ptr<DefaultBuffer>     m_rayTraceVertexBuffer;
+    std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAccelerationStructures;
 
     ComPtr<ID3D12DescriptorHeap>       m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_guiSrvDescHeap;
+
+
 };
 

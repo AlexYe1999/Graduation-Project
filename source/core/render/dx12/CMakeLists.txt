@@ -1,5 +1,4 @@
 set(BASIC_FILES
-    Buffer.hpp
     CommandQueue.hpp
     CommandQueue.cpp
     d3dx12.h      
@@ -9,11 +8,12 @@ set(BASIC_FILES
     DXSampleHelper.h
     DxUtility.hpp
     GBuffer.hpp
+    GpuBuffer.hpp
+    GpuResource.hpp
     GraphicsManager.hpp
     GraphicsManager.cpp
     ReadBackBuffer.hpp
     ReadBackBuffer.cpp
-    Resource.hpp
     Texture2D.hpp
     UploadBuffer.hpp
 )
@@ -26,6 +26,7 @@ PRIVATE
     ${SOURCE_DIR}/asset/dx12
     ${SOURCE_DIR}/core
     ${SOURCE_DIR}/utility
+    ${3RDPARTY_DIR}/dxc
 )
 
 target_link_libraries(Dx12

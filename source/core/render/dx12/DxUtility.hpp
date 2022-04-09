@@ -2,6 +2,8 @@
 #include "Utility.hpp"
 #include "DXSampleHelper.h"
 #include "d3dx12.h"
+#include <wrl.h>
+#include <windows.h>
 #include <d3d11.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
@@ -43,11 +45,11 @@ namespace Utility{
         #endif
 
             ComPtr<ID3DBlob> errorBlob = nullptr;
-            ThrowIfFailed(D3DCompileFromFile(
+            D3DCompileFromFile(
                 Utility::ToWString(hlslFileName).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
                 entryPoint, shaderModel, dwShaderFlags, 0,
                 blobOut.GetAddressOf(), errorBlob.GetAddressOf()
-            ));
+            );
 
             if(errorBlob != nullptr){
                 OutputDebugStringA(reinterpret_cast<const char*>(errorBlob->GetBufferPointer()));

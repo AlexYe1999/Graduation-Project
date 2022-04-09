@@ -1,8 +1,8 @@
 #include "Dx12Mesh.hpp"
 
 Dx12Mesh::Dx12Mesh(
-    const UploadBuffer& vertexBuffer, size_t vertexCount,
-    const UploadBuffer& indexBuffer, size_t indexCount,
+    UploadBuffer& vertexBuffer, size_t vertexCount,
+    UploadBuffer& indexBuffer, size_t indexCount,
     const PipelineStateFlag flag, const std::shared_ptr<Material>& material,
     const ComPtr<ID3D12Device8>& device
 ) 
@@ -29,7 +29,7 @@ Dx12Mesh::Dx12Mesh(
     m_vertexBufferView.clear();
     m_vertexBufferView.resize(varTypeData.size());
    
-    auto cmdList = m_graphicsMgr->GetCommandList();
+    auto cmdList = m_graphicsMgr->GetTempCommandList();
     m_vertexBuffer = std::make_unique<DefaultBuffer>(device, cmdList, vertexBuffer);
     m_indexBuffer  = std::make_unique<DefaultBuffer>(device, cmdList, indexBuffer);
 
@@ -40,17 +40,18 @@ Dx12Mesh::Dx12Mesh(
         size_t byteSize = data.GetSize() * vertexCount;
         auto& bufferView = m_vertexBufferView[index];
 
-        bufferView.BufferLocation = m_vertexBuffer->GetAddress() + addrOffset;
+        bufferView.BufferLocation = m_vertexBuffer->GetGpuVirtualAddress() + addrOffset;
         bufferView.SizeInBytes    = byteSize;
         bufferView.StrideInBytes  = data.GetSize();
 
         addrOffset += byteSize;
     }
 
-    m_indexBufferView.BufferLocation = m_indexBuffer->GetAddress();
+    m_indexBufferView.BufferLocation = m_indexBuffer->GetGpuVirtualAddress();
     m_indexBufferView.SizeInBytes    = m_indexBuffer->GetByteSize();
     m_indexBufferView.Format         = DXGI_FORMAT_R32_UINT;
-
+    
+    m_graphicsMgr->ExecuteCommandList(cmdList);
 }
 
 void Dx12Mesh::OnRender(){

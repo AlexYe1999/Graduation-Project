@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility.hpp"
+#include "DxUtility.hpp"
 #include "Mesh.hpp"
 #include "GeoMath.hpp"
 
@@ -10,7 +10,8 @@ public:
     SceneNode(uint32_t nodeIndex, SceneNode* pParentNode);
 
     virtual void OnUpdate();
-    virtual void OnRender() = 0;
+    virtual void OnRender()   = 0;
+    virtual void OnTraceRay() = 0;
 
     virtual void AddChild(std::unique_ptr<SceneNode>&& childNode);
     virtual void AddComponent(std::shared_ptr<IComponent>& component);
@@ -60,6 +61,7 @@ public:
 
     virtual void OnUpdate() override;
     virtual void OnRender() override;
+    virtual void OnTraceRay() override;
 
     virtual GeoMath::Matrix4f GetTransform() const override { return m_isUseSingleMatrix ? r : r * t; }
 };

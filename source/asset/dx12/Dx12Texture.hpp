@@ -1,15 +1,13 @@
 #pragma once
+#include "tiny_gltf.h"
 #include "Texture.hpp"
 #include "DxUtility.hpp"
+#include "Texture2D.hpp"
 
 class Dx12Texture : public Texture{
 public:
-    Dx12Texture();
-
-    static void SetCurrentCommandList(const ComPtr<ID3D12GraphicsCommandList2>& device){
-        m_currentCommandList = device;
-    }
+    const IDXGIResource* GetResource() const { m_tex2D->GetResource(); }
 
 protected:
-    inline static ComPtr<ID3D12GraphicsCommandList2> m_currentCommandList = nullptr;
+    std::unique_ptr<Texture2D> m_tex2D;
 };

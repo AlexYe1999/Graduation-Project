@@ -20,10 +20,10 @@ CommandQueue::CommandQueue(const ComPtr<ID3D12Device8>& device, D3D12_COMMAND_LI
 
 CommandQueue::~CommandQueue(){}
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(){
+ComPtr<ID3D12GraphicsCommandList4> CommandQueue::GetCommandList(){
 
     ComPtr<ID3D12CommandAllocator> commandAllocator;
-    ComPtr<ID3D12GraphicsCommandList2> commandList;
+    ComPtr<ID3D12GraphicsCommandList4> commandList;
 
     if (!m_commandAllocatorQueue.empty() && IsFenceComplete(m_commandAllocatorQueue.front().fenceValue)){
 
@@ -52,9 +52,9 @@ ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList(){
     return commandList;
 }
 
-ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandList(ComPtr<ID3D12CommandAllocator>& allocator){
+ComPtr<ID3D12GraphicsCommandList4> CommandQueue::CreateCommandList(ComPtr<ID3D12CommandAllocator>& allocator){
     
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> commandList;
     ThrowIfFailed(m_d3d12Device->CreateCommandList(0, m_commandListType, allocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
  
     return commandList;
@@ -94,10 +94,9 @@ ComPtr<ID3D12CommandAllocator> CommandQueue::CreateCommandAllocator(){
     return commandAllocator;
 }
 
-uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2>& commandList){
+uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList4>& commandList){
 
     commandList->Close();
-
     ID3D12CommandAllocator* commandAllocator;
     UINT dataSize = sizeof(commandAllocator);
     ThrowIfFailed(commandList->GetPrivateData(__uuidof(ID3D12CommandAllocator), &dataSize, &commandAllocator));

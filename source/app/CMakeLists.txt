@@ -15,6 +15,7 @@ include_directories(
     ${SOURCE_DIR}/core/render/dx12
     ${SOURCE_DIR}/core/render/dx12/resource
     ${SOURCE_DIR}/utility
+    ${3RDPARTY_DIR}/dxc
 )
 
 add_executable(Graduation-Project WIN32 ${ALL_FILES})

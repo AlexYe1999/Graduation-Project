@@ -15,6 +15,7 @@ public:
 
     virtual void OnUpdate() override;
     virtual void OnRender() override;
+    virtual void OnTraceRay() override;
 
 protected:
     Dx12GraphicsManager* const m_graphicsMgr;
@@ -27,8 +28,9 @@ public:
         , m_graphicsMgr(Dx12GraphicsManager::GetInstance())
     {}
 
-    virtual void OnUpdate() override;
-    virtual void OnRender() override {};
+    virtual void OnUpdate()   override;
+    virtual void OnRender()   override {};
+    virtual void OnTraceRay() override {};
 
 protected:
     Dx12GraphicsManager* const m_graphicsMgr;

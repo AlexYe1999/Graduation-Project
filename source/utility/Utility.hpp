@@ -5,15 +5,14 @@
 
 #include <string>
 #include <memory>
-#include <tuple>
 #include <array>
+#include <tuple>
 #include <unordered_map>
+
+#include <algorithm>
 
 #include <fstream>
 #include <filesystem>
-
-#include <wrl.h>
-#include <windows.h>
 
 namespace Utility{
 	

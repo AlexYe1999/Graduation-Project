@@ -19,7 +19,8 @@ public:
     StaticMesh() : m_meshes(){}
 
     template<typename... Args>
-    void CreateNewMesh(Args... args){
+    void CreateNewMesh(uint32_t index, Args... args){
+        m_meshIndices.emplace_back(index);
         m_meshes.emplace_back(args...);
     }
 
@@ -27,6 +28,11 @@ public:
     virtual void OnUpdate();
     virtual void OnRender();
 
+    const std::vector<uint32_t>& GetIndices() const{
+        return m_meshIndices;
+    }
+
 protected:
     std::vector<std::unique_ptr<Mesh>> m_meshes;
+    std::vector<uint32_t> m_meshIndices;
 };

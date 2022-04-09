@@ -1,34 +1,41 @@
 
-cbuffer MainBuffer : register(b0){
-    matrix gView;
-    matrix gProj;
-    float4 gCameraPos;
+struct MainFrameConstants{
+    matrix model;
+    matrix view;
+    matrix proj;
+    float4 cameraPosition;
+    float  fov;
 };
 
-cbuffer ObjBuffer : register(b1){
-    matrix gToWorld;
-    matrix gToLocal;
+struct ObjectConstants{
+    matrix toWorld;
+    matrix toLocal;
+    uint   objectIndex;   
 };
 
-cbuffer MatBuffer : register(b2){
-    float  gAlphaCutoff;
+struct MaterialConstants{
+    float  alphaCutoff;
     float3 padding;
 
-    uint   gMiscMask;
-    float3 gEssisiveFactor;
-    float4 gBaseColor;
-    float4 gMiscVector;
+    uint   miscMask;
+    float3 essisiveFactor;
+    float4 baseColor;
+    float4 miscVector;
 
-    float2 gNormalTexScale;
-    float2 gOcclusionTexScale;
-    float2 gEssisiveTexScale;
-    float2 gBasicTexScale;
-    float2 gTex4TexScale;
-    float2 gTex5TexScale;
+    float2 normalTexScale;
+    float2 occlusionTexScale;
+    float2 essisiveTexScale;
+    float2 basicTexScale;
+    float2 tex4TexScale;
+    float2 tex5TexScale;
 };
 
-SamplerState gPointSampler  : register(s0);
-SamplerState gAnisoSampler  : register(s1);
+ConstantBuffer<MainFrameConstants> mainConst : register(b0);
+ConstantBuffer<ObjectConstants>    objConst  : register(b1);
+ConstantBuffer<MaterialConstants>  matConst  : register(b2);
+
+SamplerState pointSampler : register(s0);
+SamplerState anisoSampler : register(s1);
 
 Texture2D<float4> tex0 : register(t0);
 Texture2D<float4> tex1 : register(t1);
@@ -55,15 +62,17 @@ struct TexVertex{
 };
 
 struct TexPixel{
-    float4 posH    : SV_POSITION;
-    float3 posW    : POSITION;
-    float3 normalW : NORMAL;
+    float4 posH      : SV_POSITION;
+    float3 posW      : POSITION;
+    float3 normalW   : NORMAL;
+    float4 tangent   : TANGENT;
+    float2 texCoord  : TEXCOORD;
 };
 
 struct GBuffer{
-    float4 baseColor : SV_Target0;
-    float4 emissive  : SV_Target1;
-    float4 position  : SV_Target2;
-    float4 normal    : SV_Target3;
-    uint   objectID  : SV_Target4;
+    float4 baseColor : SV_TARGET0;
+    float4 position  : SV_TARGET1;
+    float4 normal    : SV_TARGET2;
+    float4 misc      : SV_TARGET3;
+    uint   objectID  : SV_TARGET4;
 };

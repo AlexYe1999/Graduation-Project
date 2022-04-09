@@ -106,19 +106,30 @@ struct Vertex1 : public Dx12SOA{
 };
 
 struct MainConstBuffer{
+    GeoMath::Matrix4f model;
     GeoMath::Matrix4f view;
     GeoMath::Matrix4f proj;
-    GeoMath::Vector4f cameraPos;
+    GeoMath::Vector4f cameraPosition;
+    float             fov;
 };
-static_assert(sizeof(MainConstBuffer) == 144);
+static_assert(sizeof(MainConstBuffer) == 224);
 
 struct ObjectConstBuffer{
     GeoMath::Matrix4f toWorld;
     GeoMath::Matrix4f toLocal;
+    uint32_t          objectIndex{0};
+    uint32_t          padding[3]{};
 };
-static_assert(sizeof(ObjectConstBuffer) == 128);
+static_assert(sizeof(ObjectConstBuffer) == 144);
 
-struct MatConstBuffer{};
+struct RayTraceMeshInfo{
+    uint32_t indexOffsetBytes    = 0;
+    uint32_t positionOffsetBytes = 0;
+    uint32_t normalOffsetBytes   = 0;
+    uint32_t tangentOffsetBytes  = 0;
+    uint32_t uvOffsetBytes       = 0;
+};
+static_assert(sizeof(RayTraceMeshInfo) == 20);
 
 inline Vertex0 vertex0;
 inline Vertex1 vertex1;

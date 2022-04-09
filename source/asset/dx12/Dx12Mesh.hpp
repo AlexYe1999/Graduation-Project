@@ -9,8 +9,8 @@
 class Dx12Mesh : public Mesh{
 public:
     Dx12Mesh(
-        const UploadBuffer& vertexBuffer, size_t vertexCount, 
-        const UploadBuffer& indexBuffer, size_t indexCount,
+        UploadBuffer& vertexBuffer, size_t vertexCount, 
+        UploadBuffer& indexBuffer, size_t indexCount,
         const PipelineStateFlag flag, const std::shared_ptr<Material>& material,
         const ComPtr<ID3D12Device8>& device
     );

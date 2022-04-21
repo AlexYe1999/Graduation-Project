@@ -14,6 +14,7 @@
 Pipeline::Pipeline(std::string& name, uint16_t width, uint16_t height)
     : Application(name, width, height)
     , m_isLeftMouseDown(false)
+    , m_denoising(false)
     , m_lastMousePosX(0)
     , m_lastMousePosY(0)
     , m_cameraMode(0)
@@ -45,7 +46,7 @@ void Pipeline::InitD3D(){
     auto  cmdList  = m_graphicsMgr->GetTempCommandList();
 
     {
-        const D3D12_STATIC_SAMPLER_DESC samplers[4] = {
+        const D3D12_STATIC_SAMPLER_DESC samplers[6] = {
             CD3DX12_STATIC_SAMPLER_DESC(
                 0,                                // shaderRegister
                 D3D12_FILTER_MIN_MAG_MIP_POINT,   // filter
@@ -77,6 +78,22 @@ void Pipeline::InitD3D(){
                 D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
                 0.0f,                             // mipLODBias
                 8                                 // maxAnisotropy
+            ),
+            CD3DX12_STATIC_SAMPLER_DESC(
+                4,                                // shaderRegister
+                D3D12_FILTER_MIN_MAG_MIP_POINT,   // filter
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP   // addressW
+            ),
+            CD3DX12_STATIC_SAMPLER_DESC(
+                5,                                // shaderRegister
+                D3D12_FILTER_ANISOTROPIC,         // filter
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+                D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
+                0.0f,                             // mipLODBias
+                8                                 // maxAnisotropy
             )
         };
 
@@ -84,18 +101,23 @@ void Pipeline::InitD3D(){
         ComPtr<ID3DBlob> errorBlob = nullptr;
         {
             // Create Deffered Rendering Rootsignature
-            D3D12_DESCRIPTOR_RANGE range{
+            D3D12_DESCRIPTOR_RANGE gbuffer{
                 D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
                 5, 0, 0, 0
             };
-            CD3DX12_ROOT_PARAMETER rootParameter[4] = {};
+            D3D12_DESCRIPTOR_RANGE luminance{
+                D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                1, 5, 0, 0
+            };
+            CD3DX12_ROOT_PARAMETER rootParameter[5] = {};
             rootParameter[0].InitAsConstantBufferView(1);
             rootParameter[1].InitAsConstantBufferView(0);
             rootParameter[2].InitAsConstantBufferView(2);
-            rootParameter[3].InitAsDescriptorTable(1, &range);
+            rootParameter[3].InitAsDescriptorTable(1, &gbuffer);
+            rootParameter[4].InitAsDescriptorTable(1, &luminance);
 
             CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(
-                4, rootParameter, 2, samplers,
+                5, rootParameter, 2, samplers,
                 D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
             );
 
@@ -118,16 +140,17 @@ void Pipeline::InitD3D(){
                 1, 0, 1, 0
             };
             // Raytracing Rootsignature
-            CD3DX12_ROOT_PARAMETER globalRayteacingRootParameter[6] = {};
+            CD3DX12_ROOT_PARAMETER globalRayteacingRootParameter[7] = {};
             globalRayteacingRootParameter[0].InitAsDescriptorTable(1, &rayTracingRange);
             globalRayteacingRootParameter[1].InitAsConstantBufferView(0, 1);
             globalRayteacingRootParameter[2].InitAsShaderResourceView(0, 1);
             globalRayteacingRootParameter[3].InitAsShaderResourceView(1, 1);
             globalRayteacingRootParameter[4].InitAsShaderResourceView(2, 1);
             globalRayteacingRootParameter[5].InitAsShaderResourceView(3, 1);
+            globalRayteacingRootParameter[6].InitAsShaderResourceView(4, 1);
 
             CD3DX12_ROOT_SIGNATURE_DESC golobalRootSignatureDesc(
-                6, globalRayteacingRootParameter, 2, &samplers[2],
+                7, globalRayteacingRootParameter, 2, &samplers[2],
                 D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
             );
 
@@ -139,7 +162,7 @@ void Pipeline::InitD3D(){
             ThrowIfFailed(dxDevice->CreateRootSignature(
                 0, serializedRootSignature->GetBufferPointer(),
                 serializedRootSignature->GetBufferSize(),
-                IID_PPV_ARGS(m_raytracingGlobalRootSignature.GetAddressOf())
+                IID_PPV_ARGS(m_rayTracingGlobalRootSignature.GetAddressOf())
             ));
 
             D3D12_DESCRIPTOR_RANGE rayTracingCLocalRange{
@@ -150,7 +173,7 @@ void Pipeline::InitD3D(){
             hitLocalRayteacingRootParameter[0].InitAsDescriptorTable(1, &rayTracingCLocalRange);
 
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(
-                1, hitLocalRayteacingRootParameter, 2, samplers,
+                1, hitLocalRayteacingRootParameter, 0, nullptr,
                 D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE
             );
 
@@ -163,6 +186,51 @@ void Pipeline::InitD3D(){
                 0, serializedRootSignature->GetBufferPointer(),
                 serializedRootSignature->GetBufferSize(),
                 IID_PPV_ARGS(m_hitLocalRootSignature.GetAddressOf())
+            ));
+
+            D3D12_DESCRIPTOR_RANGE finalResultTable{
+                D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+                1, 0, 3, 0
+            };
+            D3D12_DESCRIPTOR_RANGE varianceTable{
+                D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+                1, 1, 3, 0
+            };
+            D3D12_DESCRIPTOR_RANGE preResultTable{
+                D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                1, 0, 3, 0
+            };
+            D3D12_DESCRIPTOR_RANGE newResultTable{
+                D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                1, 1, 3, 0
+            };
+            D3D12_DESCRIPTOR_RANGE gBufferTable{
+                D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                5, 2, 3, 0
+            };
+
+            CD3DX12_ROOT_PARAMETER denisingRootParameter[6]{};
+            denisingRootParameter[0].InitAsConstantBufferView(0);
+            denisingRootParameter[1].InitAsDescriptorTable(1, &finalResultTable);
+            denisingRootParameter[2].InitAsDescriptorTable(1, &varianceTable);
+            denisingRootParameter[3].InitAsDescriptorTable(1, &preResultTable);
+            denisingRootParameter[4].InitAsDescriptorTable(1, &newResultTable);
+            denisingRootParameter[5].InitAsDescriptorTable(1, &gBufferTable);
+
+            CD3DX12_ROOT_SIGNATURE_DESC denisingSignatureDesc(
+                6, denisingRootParameter, 2, &samplers[4],
+                D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+            );
+
+            ThrowIfFailed(D3D12SerializeRootSignature(
+                &denisingSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+                serializedRootSignature.GetAddressOf(), errorBlob.GetAddressOf()
+            ));
+
+            ThrowIfFailed(dxDevice->CreateRootSignature(
+                0, serializedRootSignature->GetBufferPointer(),
+                serializedRootSignature->GetBufferSize(),
+                IID_PPV_ARGS(m_denoisingRootSignature.GetAddressOf())
             ));
 
         }
@@ -194,6 +262,48 @@ void Pipeline::InitD3D(){
         PipelineStateFlag::PIPELINE_STATE_FRONT_CLOCKWISE, 
         m_deferredRootSignature
     );
+
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_0,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_1,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_2,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_4,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_8,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_16,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_READBACK,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_VARIANCE,
+        m_denoisingRootSignature
+    );
+
 
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.NumDescriptors = 1;
@@ -284,7 +394,7 @@ void Pipeline::InitD3D(){
             // Global root signature
             // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
             auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
-            globalRootSignature->SetRootSignature(m_raytracingGlobalRootSignature.Get());
+            globalRootSignature->SetRootSignature(m_rayTracingGlobalRootSignature.Get());
         }
 
         {
@@ -340,7 +450,7 @@ void Pipeline::InitD3D(){
 
         uint8_t* hitShader = reinterpret_cast<uint8_t*>(stateObjectProperties->GetShaderIdentifier(L"HitGroup"));
         uint32_t svvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle = m_graphicsMgr->GetTexGPUHandle();
+        CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle = m_graphicsMgr->GetTexGpuHandle();
         for(auto& tex : m_textures){
             m_shaderTable->CopyData(hitShader, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, byteOffset);
             byteOffset += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
@@ -427,8 +537,8 @@ void Pipeline::OnRender(){
     );
     cmdList->SetGraphicsRootSignature(m_deferredRootSignature.Get());
     cmdList->SetDescriptorHeaps(1, m_graphicsMgr->GetRTHeap().GetAddressOf());
-    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+    cmdList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     cmdList->RSSetViewports(5, viewPorts);
     cmdList->RSSetScissorRects(5, scissors);
 
@@ -442,21 +552,114 @@ void Pipeline::OnRender(){
 
     //Ray Tracing
     cmdList->SetPipelineState1(m_rayTracingStateObject.Get());
-    cmdList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
-
+    cmdList->SetComputeRootSignature(m_rayTracingGlobalRootSignature.Get());
     cmdList->SetDescriptorHeaps(1, m_graphicsMgr->GetRTHeap().GetAddressOf());
-    cmdList->SetComputeRootDescriptorTable(0, currFrameRes.uavHandle);
+
+    cmdList->SetComputeRootDescriptorTable(0, currFrameRes.uavGpuHandle[0]);
     cmdList->SetComputeRootConstantBufferView(1, currFrameRes.mainConst->GetGpuVirtualAddress());
     cmdList->SetComputeRootShaderResourceView(2, currFrameRes.topLevelAccelerationStructure->GetGPUVirtualAddress());
     cmdList->SetComputeRootShaderResourceView(3, m_rayTraceMeshInfoGpu->GetGpuVirtualAddress());
-    cmdList->SetComputeRootShaderResourceView(4, m_rayTraceIndexBuffer->GetGpuVirtualAddress());
-    cmdList->SetComputeRootShaderResourceView(5, m_rayTraceVertexBuffer->GetGpuVirtualAddress());
+    cmdList->SetComputeRootShaderResourceView(4, m_matConstBuffer->GetGpuVirtualAddress());
+    cmdList->SetComputeRootShaderResourceView(5, m_rayTraceIndexBuffer->GetGpuVirtualAddress());
+    cmdList->SetComputeRootShaderResourceView(6, m_rayTraceVertexBuffer->GetGpuVirtualAddress());
 
     m_dispatchRayDesc.Width  = m_wndWidth;
     m_dispatchRayDesc.Height = m_wndHeight;
-    m_dispatchRayDesc.Depth = 1;
+    m_dispatchRayDesc.Depth  = 1;
 
     cmdList->DispatchRays(&m_dispatchRayDesc);
+
+    // Denoising
+    if(m_denoising){
+            auto& preFrame = m_graphicsMgr->GetPreFrameResource();
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_0,
+                0xFFFFFFFF, true
+            );
+            cmdList->SetComputeRootSignature(m_denoisingRootSignature.Get());
+
+            cmdList->SetComputeRootConstantBufferView(0, currFrameRes.mainConst->GetGpuVirtualAddress());
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+            cmdList->SetComputeRootDescriptorTable(2, currFrameRes.uavGpuHandle[2]);
+            cmdList->SetComputeRootDescriptorTable(3, preFrame.srvGpuHandle[0]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+            cmdList->SetComputeRootDescriptorTable(
+                5, currFrameRes.gbuffer->AsShaderResource(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+            );
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+  
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[1]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[0]);
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_1,
+                0xFFFFFFFF, true
+            );
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_2,
+                0x800F, true
+            );
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_4,
+                0x800F, true
+            );
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[1]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[0]);
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_8,
+                0x800F, true
+            );
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_16,
+                0x800F, true
+            );
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[1]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[0]);
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+
+            m_graphicsMgr->SetPipelineStateFlag(
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_READBACK,
+                0x800F, true
+            );
+            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+            cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+    }
+    else{
+        m_graphicsMgr->SetPipelineStateFlag(
+            PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+            PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_VARIANCE,
+            0xFFFFFFFF, true
+        );
+        cmdList->SetComputeRootSignature(m_denoisingRootSignature.Get());
+
+        cmdList->SetComputeRootConstantBufferView(0, currFrameRes.mainConst->GetGpuVirtualAddress());
+        cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+        cmdList->SetComputeRootDescriptorTable(2, currFrameRes.uavGpuHandle[2]);
+        cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+        cmdList->SetComputeRootDescriptorTable(
+            5, currFrameRes.gbuffer->AsShaderResource(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+        );
+        cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+    }
 
     // Render Screen
     // Render to back buffer
@@ -464,7 +667,6 @@ void Pipeline::OnRender(){
         currFrameRes.renderTarget.Get(),
         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
     ));
-
 
     m_graphicsMgr->SetPipelineStateFlag(
         PipelineStateFlag::PIPELINE_STATE_SHADER_COMB_2  |
@@ -474,7 +676,8 @@ void Pipeline::OnRender(){
     );
 
     cmdList->SetGraphicsRootSignature(m_deferredRootSignature.Get());
-    cmdList->SetGraphicsRootDescriptorTable(3, currFrameRes.srvHandle);
+    cmdList->SetGraphicsRootDescriptorTable(3, currFrameRes.gbuffer->AsShaderResource(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+    cmdList->SetGraphicsRootDescriptorTable(4, currFrameRes.srvGpuHandle[0]);
 
     cmdList->RSSetViewports(1, &m_viewport);
     cmdList->RSSetScissorRects(1, &m_scissors);
@@ -516,21 +719,16 @@ void Pipeline::RenderGUI(){
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    static bool show_demo_window    = true;
-    static bool show_another_window = false;
-    if(show_demo_window){
-        ImGui::ShowDemoWindow(&show_demo_window);
-    }
-
     {
         ImGui::Begin("Control Panel");
         ImGui::ColorEdit3("Background Color", m_backgroundColor);
         ImGui::Separator();
 
-        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 3);
+        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 2);
         ImGui::Separator();
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Checkbox("Densising", &m_denoising);
         ImGui::End();
     }
 

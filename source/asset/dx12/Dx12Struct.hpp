@@ -110,9 +110,14 @@ struct MainConstBuffer{
     GeoMath::Matrix4f view;
     GeoMath::Matrix4f proj;
     GeoMath::Vector4f cameraPosition;
+    GeoMath::Vector2f randomSeed;
+    uint32_t          frameWidth;
+    uint32_t          frameHeight;
     float             fov;
+    float             time;
+    uint32_t          padding[2];
 };
-static_assert(sizeof(MainConstBuffer) == 224);
+static_assert(sizeof(MainConstBuffer) == 240);
 
 struct ObjectConstBuffer{
     GeoMath::Matrix4f toWorld;
@@ -128,8 +133,9 @@ struct RayTraceMeshInfo{
     uint32_t normalOffsetBytes   = 0;
     uint32_t tangentOffsetBytes  = 0;
     uint32_t uvOffsetBytes       = 0;
+    uint32_t matIndex            = 0;
 };
-static_assert(sizeof(RayTraceMeshInfo) == 20);
+static_assert(sizeof(RayTraceMeshInfo) == 24);
 
 inline Vertex0 vertex0;
 inline Vertex1 vertex1;

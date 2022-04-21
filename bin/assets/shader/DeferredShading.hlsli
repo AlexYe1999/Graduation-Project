@@ -4,7 +4,10 @@ struct MainFrameConstants{
     matrix view;
     matrix proj;
     float4 cameraPosition;
+    float2 randomSeed;
+    uint2  resolution;
     float  fov;
+    float  time;
 };
 
 struct ObjectConstants{
@@ -42,6 +45,8 @@ Texture2D<float4> tex1 : register(t1);
 Texture2D<float4> tex2 : register(t2);
 Texture2D<float4> tex3 : register(t3);
 Texture2D<uint>   tex4 : register(t4);
+
+Texture2D<float4>   luminance : register(t5);
 
 struct BasicVertex{
     float3 posL    : POSITION;

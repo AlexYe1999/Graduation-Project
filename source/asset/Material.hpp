@@ -52,7 +52,6 @@ struct MaterialConstant{
     GeoMath::Vector2f tex4TexScale{1.0f, 1.0f};
     GeoMath::Vector2f tex5TexScale{1.0f, 1.0f};
 };
-
 static_assert(sizeof(MaterialConstant) == 112);
 
 

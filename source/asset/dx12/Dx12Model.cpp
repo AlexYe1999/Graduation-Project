@@ -89,7 +89,7 @@ Dx12Model::Dx12Model(const char* fileName)
         srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle = m_graphicsMgr->GetTexCPUHandle();
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle = m_graphicsMgr->GetTexCpuHandle();
         for(auto& tex : m_model.textures){
             auto& image  = m_model.images[tex.source];
             auto  format = GetFormat(image);
@@ -179,7 +179,7 @@ Dx12Model::Dx12Model(const char* fileName)
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {virtualAddress, matConstByteSize};
             dxDevice->CreateConstantBufferView(&cbvDesc, cbvHandle);
 
-            D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_graphicsMgr->GetTexGPUHandle();
+            D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_graphicsMgr->GetTexGpuHandle();
 
             if(mat.extensions.find("KHR_materials_pbrSpecularGlossiness") != mat.extensions.end()){
                 auto& pbrParam = mat.extensions["KHR_materials_pbrSpecularGlossiness"];
@@ -327,6 +327,7 @@ Dx12Model::Dx12Model(const char* fileName)
                     break;
                 }
             }
+            meshInfo.matIndex = primitive.material;
             asInfo.texIndex = texIndex[primitive.material];
         }
 

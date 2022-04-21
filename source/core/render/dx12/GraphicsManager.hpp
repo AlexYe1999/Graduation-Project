@@ -30,9 +30,11 @@ struct FrameResource{
     ComPtr<ID3D12Resource>        topLevelAccelerationStructure;
     std::unique_ptr<UploadBuffer> rayTraceInstanceDesc;
 
-    std::unique_ptr<Texture2D>    rayTracingTarget;
-    D3D12_GPU_DESCRIPTOR_HANDLE   uavHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE   srvHandle;
+    std::unique_ptr<Texture2D>    rayTracingTarget[2];
+    D3D12_CPU_DESCRIPTOR_HANDLE   uavCpuHandle[3];
+    D3D12_GPU_DESCRIPTOR_HANDLE   uavGpuHandle[3];
+    D3D12_CPU_DESCRIPTOR_HANDLE   srvCpuHandle[2];
+    D3D12_GPU_DESCRIPTOR_HANDLE   srvGpuHandle[2];
 };
 
 struct DxilLibrary{
@@ -99,21 +101,23 @@ public:
 
     void Flush() const { m_commandQueue->Flush(); }
 
-    FrameResource&    GetFrameResource() const { return m_frameResources[m_frameIndex]; }
-    FrameResource&    GetFrameResource(uint32_t frameIndex) const { return m_frameResources[frameIndex]; }
+    FrameResource& GetFrameResource() const { return m_frameResources[m_frameIndex]; }
+    FrameResource& GetFrameResource(uint32_t frameIndex) const { return m_frameResources[frameIndex]; }
+    FrameResource& GetPreFrameResource() const { return m_frameResources[(m_frameIndex+m_frameCount-1)%m_frameCount]; }
+    
     uint8_t           GetFrameCount() const { return m_frameCount; };
     GeoMath::Vector2f GetFrameResolution() const{ return m_frameResolution; };
-    
-    CD3DX12_CPU_DESCRIPTOR_HANDLE GetTexCPUHandle() const{
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetTexCpuHandle() const{
         return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-            m_rayTracingHeap->GetCPUDescriptorHandleForHeapStart(), m_frameCount * 2, 
+            m_rayTracingHeap->GetCPUDescriptorHandleForHeapStart(), m_frameCount * 9 + 1, 
             m_device->DxDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
         );
     };
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE GetTexGPUHandle() const{
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetTexGpuHandle() const{
         return CD3DX12_GPU_DESCRIPTOR_HANDLE(
-            m_rayTracingHeap->GetGPUDescriptorHandleForHeapStart(), m_frameCount * 2, 
+            m_rayTracingHeap->GetGPUDescriptorHandleForHeapStart(), m_frameCount * 9 + 1, 
             m_device->DxDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
         );
     };
@@ -151,6 +155,7 @@ protected:
     Shaders                            m_vertexShaders;
     Shaders                            m_geometryShaders;
     Shaders                            m_pixelShaders;
+    Shaders                            m_computeShaders;
 
     uint64_t                           m_cachedPipelineFlag;
     uint64_t                           m_currentPipelineFlag;
@@ -159,6 +164,7 @@ protected:
     ComPtr<ID3D12DescriptorHeap>       m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_rayTracingHeap;
 
+    std::unique_ptr<Texture2D>         m_varianceTarget;
     Dx12GraphicsManager();
     ~Dx12GraphicsManager(){ m_commandQueue->Flush(); }
 

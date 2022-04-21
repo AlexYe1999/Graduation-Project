@@ -6,19 +6,27 @@ class GBuffer{
 public:
     GBuffer() {};
     ~GBuffer() {};
-    virtual const ComPtr<ID3D12DescriptorHeap>& GetSRVHeap() const = 0;
+    virtual const CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvHandle() const = 0;
     virtual std::tuple<D3D12_CPU_DESCRIPTOR_HANDLE*, uint32_t> AsRenderTarget(const ComPtr<ID3D12GraphicsCommandList2>& cmdList) = 0;
-    virtual D3D12_GPU_DESCRIPTOR_HANDLE AsPixelShaderResource(const ComPtr<ID3D12GraphicsCommandList2>& cmdList) = 0;
+    virtual D3D12_GPU_DESCRIPTOR_HANDLE AsShaderResource(
+        const ComPtr<ID3D12GraphicsCommandList2>& cmdList, 
+        const D3D12_RESOURCE_STATES state
+    ) = 0;
 };
 
 class PrePass : GBuffer{
 public:
     PrePass(
         const ComPtr<ID3D12Device8>& device,
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle) 
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle,
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvCPUHandle,
+        CD3DX12_GPU_DESCRIPTOR_HANDLE srvGPUHandle
+    )
         : GBuffer()
-        , m_srvDescriptorSize(device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
-        , m_rtvHandles()
+        , m_srvDescriptorSize{device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)}
+        , m_rtvHandles{rtvHandle}
+        , m_srvCPUHandle{srvCPUHandle}
+        , m_srvGPUHandle{srvGPUHandle}
     {
 
         auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -28,14 +36,7 @@ public:
             rtvHandle.Offset(1, rtvDescriptorSize);
         }
 
-        D3D12_DESCRIPTOR_HEAP_DESC srvDescHeapDesc = {};
-        srvDescHeapDesc.Type  = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        srvDescHeapDesc.NumDescriptors = 5;
-
-        ThrowIfFailed(device->CreateDescriptorHeap(&srvDescHeapDesc, IID_PPV_ARGS(m_srvHeap.GetAddressOf())));
     }
-
 
     void ResizeBuffer(
         const uint32_t width, const uint32_t height,
@@ -68,7 +69,7 @@ public:
         }
 
         // Create Shader Resource View
-        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle(m_srvCPUHandle);
         {
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -95,8 +96,8 @@ public:
 
     }
 
-    virtual const ComPtr<ID3D12DescriptorHeap>& GetSRVHeap() const override{
-        return m_srvHeap;
+    virtual const CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvHandle() const override{
+        return m_srvGPUHandle;
     }
 
     virtual std::tuple<D3D12_CPU_DESCRIPTOR_HANDLE*, uint32_t> AsRenderTarget(const ComPtr<ID3D12GraphicsCommandList2>& cmdList) override{
@@ -118,14 +119,17 @@ public:
         return {m_rtvHandles.data(), m_rtvHandles.size()};
     }
 
-    virtual D3D12_GPU_DESCRIPTOR_HANDLE AsPixelShaderResource(const ComPtr<ID3D12GraphicsCommandList2>& cmdList) override{
-        m_baseColor->ChangeState(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_position->ChangeState(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_normal->ChangeState(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_misc->ChangeState(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        m_objectID->ChangeState(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    virtual D3D12_GPU_DESCRIPTOR_HANDLE AsShaderResource(
+        const ComPtr<ID3D12GraphicsCommandList2>& cmdList,
+        const D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+    ) override{
+        m_baseColor->ChangeState(cmdList, state);
+        m_position->ChangeState(cmdList, state);
+        m_normal->ChangeState(cmdList, state);
+        m_misc->ChangeState(cmdList, state);
+        m_objectID->ChangeState(cmdList, state);
 
-        return m_srvHeap->GetGPUDescriptorHandleForHeapStart();
+        return m_srvGPUHandle;
     }
 
 protected:
@@ -136,6 +140,7 @@ protected:
     std::unique_ptr<Texture2D>                 m_objectID;
 
     uint32_t                                   m_srvDescriptorSize;
-    ComPtr<ID3D12DescriptorHeap>               m_srvHeap;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE              m_srvCPUHandle;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE              m_srvGPUHandle;
     std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 5> m_rtvHandles;
 };

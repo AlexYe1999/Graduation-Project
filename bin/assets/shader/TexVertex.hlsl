@@ -7,7 +7,7 @@ TexPixel main(TexVertex vsIn){
     vsOut.posW = world.xyz;
     vsOut.posH = mul(world, mainConst.view);
     vsOut.posH = mul(vsOut.posH, mainConst.proj);
-
+    
     vsIn.normalL   = normalize(vsIn.normalL);
     vsOut.normalW  = normalize(mul(vsIn.normalL, transpose((float3x3)objConst.toLocal)));
     vsOut.tangent  = vsIn.tangent;

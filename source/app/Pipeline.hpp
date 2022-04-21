@@ -34,6 +34,7 @@ private:
 protected:
 
     bool                               m_isLeftMouseDown;
+    bool                               m_denoising;
     uint16_t                           m_lastMousePosX;
     uint16_t                           m_lastMousePosY;
 
@@ -61,14 +62,16 @@ protected:
 
     D3D12_DISPATCH_RAYS_DESC           m_dispatchRayDesc;
     ComPtr<ID3D12StateObject>          m_rayTracingStateObject;
-    ComPtr<ID3D12RootSignature>        m_raytracingGlobalRootSignature;
+    ComPtr<ID3D12RootSignature>        m_rayTracingGlobalRootSignature;
     ComPtr<ID3D12RootSignature>        m_hitLocalRootSignature;
     std::unique_ptr<UploadBuffer>      m_shaderTable;
 
-    std::unique_ptr<DefaultBuffer>     m_rayTraceMeshInfoGpu;
-    std::unique_ptr<DefaultBuffer>     m_rayTraceIndexBuffer;
-    std::unique_ptr<DefaultBuffer>     m_rayTraceVertexBuffer;
+    std::unique_ptr<DefaultBuffer>      m_rayTraceMeshInfoGpu;
+    std::unique_ptr<DefaultBuffer>      m_rayTraceIndexBuffer;
+    std::unique_ptr<DefaultBuffer>      m_rayTraceVertexBuffer;
     std::vector<ComPtr<ID3D12Resource>> m_bottomLevelAccelerationStructures;
+
+    ComPtr<ID3D12RootSignature>         m_denoisingRootSignature;
 
     ComPtr<ID3D12DescriptorHeap>       m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_cbvHeap;

@@ -1,5 +1,8 @@
 #include "Dx12SceneNode.hpp"
+
 #include <cstddef>
+#include <random>
+#include <chrono>
 
 void Dx12SceneNode::OnUpdate(){
     SceneNode::OnUpdate();
@@ -68,11 +71,17 @@ void Dx12Camera::OnUpdate(){
         auto& framResource = m_graphicsMgr->GetFrameResource();
         
         static MainConstBuffer mainConst;
+        static std::default_random_engine e;
+        static std::uniform_real_distribution<float> u(0.5f, 1000.0f);
+
         mainConst.model = m_toWorld.Transpose();
         mainConst.view  = m_toWorld.Inverse().Transpose(); 
         mainConst.proj  = m_proj.Transpose();
         mainConst.cameraPosition = m_toWorld[3];
-        mainConst.fov = m_fov;
+        mainConst.frameWidth = m_graphicsMgr->GetFrameResolution().x;
+        mainConst.frameHeight = m_graphicsMgr->GetFrameResolution().y;
+        mainConst.fov  = m_fov;
+        mainConst.randomSeed = GeoMath::Vector2f(u(e), u(e));
 
         framResource.mainConst->CopyData(reinterpret_cast<uint8_t*>(&mainConst), sizeof(MainConstBuffer));
         m_dirtyCount--;

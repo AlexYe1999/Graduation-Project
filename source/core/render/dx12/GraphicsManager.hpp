@@ -106,7 +106,7 @@ public:
     FrameResource& GetPreFrameResource() const { return m_frameResources[(m_frameIndex+m_frameCount-1)%m_frameCount]; }
     
     uint8_t           GetFrameCount() const { return m_frameCount; };
-    GeoMath::Vector2f GetFrameResolution() const{ return m_frameResolution; };
+    MainConstBuffer&  GetMainConstBuffer(){ return m_mainConstBuffer; };
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE GetTexCpuHandle() const{
         return CD3DX12_CPU_DESCRIPTOR_HANDLE(
@@ -140,7 +140,7 @@ protected:
     uint8_t                            m_frameIndex;
     uint8_t                            m_frameCount;
 
-    GeoMath::Vector2f                  m_frameResolution;
+    MainConstBuffer                    m_mainConstBuffer;
 
     std::unique_ptr<Device>            m_device;
     std::unique_ptr<CommandQueue>      m_commandQueue;

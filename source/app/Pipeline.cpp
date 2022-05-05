@@ -9,12 +9,16 @@
 #include "dxcapi.h"
 #include "dxcapi.use.h"
 
-#include <chrono>
-
 Pipeline::Pipeline(std::string& name, uint16_t width, uint16_t height)
     : Application(name, width, height)
+    , m_openDenoising(false)
+    , m_openFrameBlend(false)
+    , m_openReprojection(false)
+    , m_alpha(1.0f)
+    , m_beta(1.0f)
+    , m_gamma(1.0f)
+    , m_sigma(1.0f)
     , m_isLeftMouseDown(false)
-    , m_denoising(false)
     , m_lastMousePosX(0)
     , m_lastMousePosY(0)
     , m_cameraMode(0)
@@ -295,6 +299,11 @@ void Pipeline::InitD3D(){
     );
     m_graphicsMgr->CreatePipelineStateObject(
         PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_RP,
+        m_denoisingRootSignature
+    );
+    m_graphicsMgr->CreatePipelineStateObject(
+        PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
         PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_READBACK,
         m_denoisingRootSignature
     );
@@ -311,7 +320,7 @@ void Pipeline::InitD3D(){
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     ThrowIfFailed(dxDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
-    auto model = Dx12Model("assets\\gltf\\scene.gltf");
+    auto model = Dx12Model("assets\\gltf\\Room\\scene.gltf");
     m_scene = std::move(model.root);
     m_scene->SetMatrix(&GeoMath::Matrix4f::Scale(1.0f, -1.0f, 1.0f), nullptr, nullptr);
 
@@ -513,8 +522,9 @@ void Pipeline::OnTick(){
 }
 
 void Pipeline::OnUpdate(){
-    m_graphicsMgr->OnUpdate();
+    m_graphicsMgr->GetMainConstBuffer().alpha = m_alpha;
     m_scene->OnUpdate();
+    m_graphicsMgr->OnUpdate();
 }
 
 void Pipeline::OnRender(){
@@ -570,25 +580,38 @@ void Pipeline::OnRender(){
     cmdList->DispatchRays(&m_dispatchRayDesc);
 
     // Denoising
-    if(m_denoising){
-            auto& preFrame = m_graphicsMgr->GetPreFrameResource();
-            m_graphicsMgr->SetPipelineStateFlag(
-                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
-                PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_0,
-                0xFFFFFFFF, true
-            );
-            cmdList->SetComputeRootSignature(m_denoisingRootSignature.Get());
+    if(m_openDenoising || m_openFrameBlend || m_openTAA){
+        auto& preFrame = m_graphicsMgr->GetPreFrameResource();
+        cmdList->SetComputeRootSignature(m_denoisingRootSignature.Get());
+        cmdList->SetComputeRootConstantBufferView(0, currFrameRes.mainConst->GetGpuVirtualAddress());
+        cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
+        cmdList->SetComputeRootDescriptorTable(2, currFrameRes.uavGpuHandle[2]);
+        cmdList->SetComputeRootDescriptorTable(3, preFrame.srvGpuHandle[0]);
+        cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
+        cmdList->SetComputeRootDescriptorTable(
+            5, currFrameRes.gbuffer->AsShaderResource(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+        );
 
-            cmdList->SetComputeRootConstantBufferView(0, currFrameRes.mainConst->GetGpuVirtualAddress());
-            cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
-            cmdList->SetComputeRootDescriptorTable(2, currFrameRes.uavGpuHandle[2]);
-            cmdList->SetComputeRootDescriptorTable(3, preFrame.srvGpuHandle[0]);
-            cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
-            cmdList->SetComputeRootDescriptorTable(
-                5, currFrameRes.gbuffer->AsShaderResource(cmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
-            );
+        if(m_openFrameBlend){
+            if(m_openTAA){
+                m_graphicsMgr->SetPipelineStateFlag(
+                    PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                    PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_RP,
+                    0xFFFFFFFF, true
+                );
+            }
+            else{
+                m_graphicsMgr->SetPipelineStateFlag(
+                    PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
+                    PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_0,
+                    0xFFFFFFFF, true
+                );
+            }
+
             cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
-  
+        }
+
+        if(m_openDenoising){
             cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[1]);
             cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[0]);
             m_graphicsMgr->SetPipelineStateFlag(
@@ -642,6 +665,8 @@ void Pipeline::OnRender(){
             cmdList->SetComputeRootDescriptorTable(1, currFrameRes.uavGpuHandle[0]);
             cmdList->SetComputeRootDescriptorTable(4, currFrameRes.srvGpuHandle[1]);
             cmdList->Dispatch(m_wndWidth / 256 + 1, m_wndHeight, 1);
+        }
+
     }
     else{
         m_graphicsMgr->SetPipelineStateFlag(
@@ -724,11 +749,15 @@ void Pipeline::RenderGUI(){
         ImGui::ColorEdit3("Background Color", m_backgroundColor);
         ImGui::Separator();
 
-        ImGui::SliderInt("Camera Mode", &m_cameraMode, 1, 2);
+        ImGui::Checkbox("Bilateral Filter", &m_openDenoising);
+        ImGui::Checkbox("Temporal Blend", &m_openFrameBlend);
+        ImGui::Checkbox("Reprojection", &m_openReprojection);
+        ImGui::Separator();
+
+        ImGui::SliderFloat("Alpha", &m_alpha, 0.0f, 1.0f);
         ImGui::Separator();
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::Checkbox("Densising", &m_denoising);
         ImGui::End();
     }
 

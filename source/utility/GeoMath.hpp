@@ -345,7 +345,7 @@ namespace GeoMath{
     static_assert(sizeof(Vector4f) == 16);
 
     template<typename T>
-    class Matrix4{};
+    class alignas(16) Matrix4{};
 
     template<>
     class alignas(16) Matrix4<float>{
@@ -389,7 +389,6 @@ namespace GeoMath{
             Vector4f row[4];
             float data[4][4];
         };
-
     };
 
     Matrix4<float>::Matrix4(
@@ -694,7 +693,5 @@ namespace GeoMath{
 
         return _mm_add_ps(a, b);
     }
-
-
 
 }

@@ -115,9 +115,13 @@ struct MainConstBuffer{
     uint32_t          frameHeight;
     float             fov;
     float             time;
-    uint32_t          padding[2];
+    float             alpha;
+    float             beta;
+    GeoMath::Matrix4f preView;
+    float             gamma;
+    float             sigma;
 };
-static_assert(sizeof(MainConstBuffer) == 240);
+static_assert(sizeof(MainConstBuffer) == 320);
 
 struct ObjectConstBuffer{
     GeoMath::Matrix4f toWorld;

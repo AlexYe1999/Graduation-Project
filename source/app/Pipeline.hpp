@@ -33,8 +33,15 @@ private:
 
 protected:
 
+    bool                               m_openDenoising;
+    bool                               m_openFrameBlend;
+    bool                               m_openReprojection;
+    float                              m_alpha;
+    float                              m_beta;
+    float                              m_gamma;
+    float                              m_sigma;
+
     bool                               m_isLeftMouseDown;
-    bool                               m_denoising;
     uint16_t                           m_lastMousePosX;
     uint16_t                           m_lastMousePosY;
 
@@ -76,7 +83,6 @@ protected:
     ComPtr<ID3D12DescriptorHeap>       m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap>       m_guiSrvDescHeap;
-
 
 };
 

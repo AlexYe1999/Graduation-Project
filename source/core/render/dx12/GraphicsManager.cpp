@@ -1,10 +1,12 @@
 #include "GraphicsManager.hpp"
 #include "Material.hpp"
 
+#include <random>
+#include <chrono>
+
 Dx12GraphicsManager::Dx12GraphicsManager()
     : m_frameIndex(0)
     , m_frameCount(0)
-    , m_frameResolution(0.0f, 0.0f)
     , m_cachedPipelineFlag(PipelineStateFlag::PIPELINE_STATE_INITIAL_FLAG)
     , m_currentPipelineFlag(PipelineStateFlag::PIPELINE_STATE_INITIAL_FLAG)
 {}
@@ -13,7 +15,6 @@ void Dx12GraphicsManager::OnInit(
     HWND hWnd, uint8_t frameCount, uint16_t width, uint16_t height
 ){
     m_frameCount      = frameCount;
-    m_frameResolution = {static_cast<float>(width), static_cast<float>(height)};
     m_device          = std::make_unique<Device>();
     m_commandQueue    = std::make_unique<CommandQueue>(m_device->DxDevice());
     m_frameResources  = std::make_unique<FrameResource[]>(frameCount);
@@ -60,6 +61,7 @@ void Dx12GraphicsManager::OnInit(
         m_computeShaders.push_back(std::make_unique<Dx12Shader>("Denoising4", "cs_5_1"));
         m_computeShaders.push_back(std::make_unique<Dx12Shader>("Denoising8", "cs_5_1"));
         m_computeShaders.push_back(std::make_unique<Dx12Shader>("Denoising16", "cs_5_1"));
+        m_computeShaders.push_back(std::make_unique<Dx12Shader>("DenoisingRP", "cs_5_1"));
         m_computeShaders.push_back(std::make_unique<Dx12Shader>("DenoisingReadBack", "cs_5_1"));
         m_computeShaders.push_back(std::make_unique<Dx12Shader>("InitVariance", "cs_5_1"));
     }
@@ -126,6 +128,9 @@ void Dx12GraphicsManager::OnInit(
 
 void Dx12GraphicsManager::OnResize(uint16_t width, uint16_t height){
 
+    m_mainConstBuffer.frameWidth = width;
+    m_mainConstBuffer.frameHeight = height;
+
     auto& dxDevice = m_device->DxDevice();
     
     {
@@ -175,7 +180,6 @@ void Dx12GraphicsManager::OnResize(uint16_t width, uint16_t height){
     }
 
     m_frameIndex      = (m_dxgiSwapChain->GetCurrentBackBufferIndex() + m_frameCount - 1) % m_frameCount;
-    m_frameResolution = {static_cast<float>(width), static_cast<float>(height)};
 }
 
 void Dx12GraphicsManager::OnUpdate(){
@@ -193,6 +197,12 @@ void Dx12GraphicsManager::OnUpdate(){
         currFrame.isAccelerationStructureDitry = false;
         m_cmdList->BuildRaytracingAccelerationStructure(&tlasDesc, 0, nullptr);
     }
+
+    static std::default_random_engine e;
+    static std::uniform_real_distribution<float> u(0.5f, 1000.0f);
+    m_mainConstBuffer.randomSeed = GeoMath::Vector2f(u(e), u(e));
+
+    m_frameResources[m_frameIndex].mainConst->CopyData(reinterpret_cast<uint8_t*>(&m_mainConstBuffer), sizeof(MainConstBuffer));
 
 }
 
@@ -224,11 +234,14 @@ void Dx12GraphicsManager::CreatePipelineStateObject(uint64_t flag, const ComPtr<
                 case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_16:
                     psoDesc.CS = m_computeShaders[5]->GetByteCode();
                     break;
-                case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_READBACK:
+                case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_RP:
                     psoDesc.CS = m_computeShaders[6]->GetByteCode();
                     break;
-                case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_VARIANCE:
+                case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_READBACK:
                     psoDesc.CS = m_computeShaders[7]->GetByteCode();
+                    break;
+                case PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_VARIANCE:
+                    psoDesc.CS = m_computeShaders[8]->GetByteCode();
                     break;
                 default:
                     break;

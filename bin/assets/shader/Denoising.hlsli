@@ -7,9 +7,11 @@ struct MainFrameConstants{
     uint2  resolution;
     float  fov;
     float  time;
-    float2 padding;
+    float  alpha;
+    float  beta;
     matrix preView;
-    matrix preProj;
+    float  gamma;
+    float  sigma;
 };
 
 ConstantBuffer<MainFrameConstants> mainConst : register(b0);

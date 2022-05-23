@@ -580,7 +580,7 @@ void Pipeline::OnRender(){
     cmdList->DispatchRays(&m_dispatchRayDesc);
 
     // Denoising
-    if(m_openDenoising || m_openFrameBlend || m_openTAA){
+    if(m_openDenoising || m_openFrameBlend || m_openReprojection){
         auto& preFrame = m_graphicsMgr->GetPreFrameResource();
         cmdList->SetComputeRootSignature(m_denoisingRootSignature.Get());
         cmdList->SetComputeRootConstantBufferView(0, currFrameRes.mainConst->GetGpuVirtualAddress());
@@ -593,7 +593,7 @@ void Pipeline::OnRender(){
         );
 
         if(m_openFrameBlend){
-            if(m_openTAA){
+            if(m_openReprojection){
                 m_graphicsMgr->SetPipelineStateFlag(
                     PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_SHADER |
                     PipelineStateFlag::PIPELINE_STATE_RENDER_COMPUTE_DENOISE_RP,
